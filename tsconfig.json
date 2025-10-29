@@ -1,5 +1,5 @@
 {
-  // Visit https://aka.ms/tsconfig to read more about this file
+  
   "compilerOptions": {
 
     "module": "ESNext",
@@ -8,10 +8,11 @@
     "sourceMap": true,
     "declaration": true,
     "declarationMap": true,
-    "moduleResolution": "node",
+    "moduleResolution": "bundler",
     "esModuleInterop": true,
     "outDir": "dist",
     "rootDir": "src",
+    
     
 
     // Stricter Typechecking Options

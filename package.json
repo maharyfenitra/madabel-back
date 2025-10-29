@@ -5,7 +5,9 @@
   "main": "index.js",
   "type": "module",
   "scripts": {
-    "dev": "npx tsx watch src/server.ts"
+    "dev": "npx tsx watch src/server.ts",
+     "build": "npx tsup src/server.ts --format cjs --out-dir dist",
+    "start": "node dist/server.cjs"
   },
   "keywords": [],
   "author": "",
@@ -29,6 +31,7 @@
     "@types/node": "^24.8.1",
     "prisma": "^6.17.1",
     "ts-node": "^10.9.2",
+    "tsup": "^8.5.0",
     "typescript": "^5.9.3"
   }
 }

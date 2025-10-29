@@ -8,9 +8,10 @@ import fs from "fs";
 export const handleSignUp = async (req: FastifyRequest, reply: FastifyReply) => {
   try {
     // Vérifier que c'est une requête multipart
+    /*
     if (!req.isMultipart()) {
       return reply.status(400).send({ error: "Content-Type must be multipart/form-data" });
-    }
+    }*/
 
     const body = req.body as Record<string, any>;
     

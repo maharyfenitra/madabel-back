@@ -21,14 +21,14 @@ export async function verifyPassword(hash: string, password: string) {
 
 // JWT
 export function generateAccessToken(userId: number) {
-  return jwt.sign({ userId }, ACCESS_TOKEN_SECRET, {
-    expiresIn: ACCESS_TOKEN_EXPIRES_IN,
+  return jwt.sign({ userId }, ACCESS_TOKEN_SECRET as any, {
+    expiresIn: ACCESS_TOKEN_EXPIRES_IN as any,
   });
 }
 
 export function generateRefreshToken(userId: number) {
-  return jwt.sign({ userId }, REFRESH_TOKEN_SECRET, {
-    expiresIn: REFRESH_TOKEN_EXPIRES_IN,
+  return jwt.sign({ userId }, REFRESH_TOKEN_SECRET  as any, {
+    expiresIn: REFRESH_TOKEN_EXPIRES_IN  as any,
   });
 }
 

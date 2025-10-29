@@ -7,6 +7,7 @@ export const signUp = async (params: SignUpParams) => {
 
 type SignUpParams = {
     name: string,
+    phone: string,
     email: string,
     password: string,
 }

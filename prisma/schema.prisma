@@ -18,10 +18,6 @@ model User {
   password        String
   role            Role            @default(EVALUATED)
   avatar          String?
-  isOnline        Boolean         @default(false)
-  isAvailable     Boolean         @default(false)
-  latitude        Float?
-  longitude       Float?
   createdAt       DateTime        @default(now())
 
   // 🔐 Auth
