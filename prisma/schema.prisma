@@ -1,0 +1,54 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// 🧍 Utilisateur principal
+
+model User {
+  id              Int             @id @default(autoincrement())
+  name            String
+  email           String?         @unique
+  phone           String          @unique
+  password        String
+  role            Role            @default(EVALUATED)
+  avatar          String?
+  isOnline        Boolean         @default(false)
+  isAvailable     Boolean         @default(false)
+  latitude        Float?
+  longitude       Float?
+  createdAt       DateTime        @default(now())
+
+  // 🔐 Auth
+  refreshTokens   RefreshToken[]
+
+}
+
+// 🔐 Token d'authentification
+//
+model RefreshToken {
+  id        Int      @id @default(autoincrement())
+  token     String   @unique
+  user      User     @relation(fields: [userId], references: [id])
+  userId    Int
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+}
+
+
+//
+// 📜 Énumérations
+enum Role {
+
+  ADMIN
+  EVALUATOR
+  EVALUATED
+}
+
+
+
