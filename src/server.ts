@@ -6,6 +6,8 @@ import Fastify from "fastify";
 const server = Fastify({ logger: true });
 
 import { authRoutes } from "./modules/auths/authRoutes";
+import { userRoutes } from "./modules/users/userRoutes";
+import { evaluationRoutes } from "./modules/evaluations/evaluationRoutes";
 
 import fastifyStatic from "@fastify/static";
 import cors from "@fastify/cors";
@@ -22,6 +24,8 @@ server.register(fastifyStatic, {
 })
 
 server.register(authRoutes);
+server.register(userRoutes);
+server.register(evaluationRoutes);
 
 // Démarrage du serveur
 const start = async () => {

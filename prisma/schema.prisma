@@ -8,23 +8,27 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+//
 // 🧍 Utilisateur principal
-
+//
 model User {
-  id              Int             @id @default(autoincrement())
-  name            String
-  email           String?         @unique
-  phone           String          @unique
-  password        String
-  role            Role            @default(EVALUATED)
-  avatar          String?
-  createdAt       DateTime        @default(now())
+  id            Int                      @id @default(autoincrement())
+  name          String
+  email         String?                  @unique
+  phone         String                   @unique
+  password      String
+  role          Role                     @default(CANDIDAT)
+  avatar        String?
+  createdAt     DateTime                 @default(now())
 
   // 🔐 Auth
-  refreshTokens   RefreshToken[]
+  refreshTokens RefreshToken[]
 
+  // 🧾 Relations avec les évaluations (via la table de jonction)
+  evaluations   EvaluationParticipant[]
 }
 
+//
 // 🔐 Token d'authentification
 //
 model RefreshToken {
@@ -36,15 +40,48 @@ model RefreshToken {
   createdAt DateTime @default(now())
 }
 
+//
+// 📊 Table principale : Évaluation
+//
+model Evaluation {
+  id           Int                       @id @default(autoincrement())
+  ref          String                    @unique
+  createdAt    DateTime                  @default(now())
+  deadline     DateTime
+  completedAt  DateTime?
+  isCompleted  Boolean                   @default(false)
+  role         String?
+  
+  // 🔗 Relation avec les participants (candidats et évaluateurs)
+  participants EvaluationParticipant[]
+
+  // timestamps
+  updatedAt    DateTime                  @updatedAt
+}
+
+//
+// 👥 Table d'association : relie les utilisateurs à une évaluation
+//
+model EvaluationParticipant {
+  id             Int          @id @default(autoincrement())
+  evaluation     Evaluation   @relation(fields: [evaluationId], references: [id])
+  evaluationId   Int
+  user           User         @relation(fields: [userId], references: [id])
+  userId         Int
+
+  // ✅ Permet de différencier si la personne est "CANDIDAT" ou "EVALUATOR"
+  participantRole Role
+
+  createdAt      DateTime     @default(now())
+
+  @@unique([evaluationId, userId]) // empêche les doublons
+}
 
 //
 // 📜 Énumérations
+//
 enum Role {
-
   ADMIN
   EVALUATOR
-  EVALUATED
+  CANDIDAT
 }
-
-
-

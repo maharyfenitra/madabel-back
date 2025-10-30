@@ -8,13 +8,11 @@
     "sourceMap": true,
     "declaration": true,
     "declarationMap": true,
-    "moduleResolution": "bundler",
+    "moduleResolution": "node",
     "esModuleInterop": true,
     "outDir": "dist",
     "rootDir": "src",
     
-    
-
     // Stricter Typechecking Options
     "noUncheckedIndexedAccess": true,
     "exactOptionalPropertyTypes": true,
