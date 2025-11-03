@@ -72,6 +72,8 @@ model EvaluationParticipant {
   // ✅ Permet de différencier si la personne est "CANDIDAT" ou "EVALUATOR"
   participantRole Role
 
+  evaluatorType   EvaluatorType?
+
   createdAt      DateTime     @default(now())
 
   @@unique([evaluationId, userId]) // empêche les doublons
@@ -84,4 +86,11 @@ enum Role {
   ADMIN
   EVALUATOR
   CANDIDAT
+}
+
+enum EvaluatorType {
+  DIRECT_MANAGER         // Manager Direct
+  DIRECT_COLLEAGUE       // Collaborateur Direct
+  PEER                   // Pair/Associé
+  OTHER                  // Autres (client/fournisseur/famille/amis/etc.)
 }

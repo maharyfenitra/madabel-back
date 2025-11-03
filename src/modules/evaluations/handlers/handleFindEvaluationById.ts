@@ -11,21 +11,7 @@ export const handleFindEvaluationById = async (
       where: {
         id: Number(evaluationId),
       },
-      include: {
-        participants: {
-          select: {
-            participantRole: true,
-            user: {
-              select: {
-                name: true,
-                email: true,
-                phone: true,
-                role: true,
-              },
-            },
-          },
-        },
-      },
+      
     });
 
     return reply.status(200).send(evaluation);

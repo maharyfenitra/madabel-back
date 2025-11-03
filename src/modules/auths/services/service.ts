@@ -1,5 +1,6 @@
 import argon2 from "argon2";
 import jwt from "jsonwebtoken";
+import crypto from "crypto";
 import type { FastifyReply, FastifyRequest } from "fastify";
 
 const ACCESS_TOKEN_SECRET = process.env.JWT_SECRET!;
@@ -65,3 +66,25 @@ export const verifyJWT = async (
     throw reply.status(401).send({ err });
   }
 };
+
+// utils/generatePassword.ts
+export function generatePassword(len = 12): string {
+  if (len < 4) throw new Error("len >= 4 required");
+  const lower = "abcdefghijklmnopqrstuvwxyz", upper = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+  const digits = "0123456789", symbols = "!@#$%^&*()-_=+[]{};:,.<>?";
+  const all = lower + upper + digits + symbols;
+  const picks = [
+    lower[Math.random()*lower.length|0],
+    upper[Math.random()*upper.length|0],
+    digits[Math.random()*digits.length|0],
+    symbols[Math.random()*symbols.length|0],
+  ];
+  const remaining = len - picks.length;
+  const bytes = (typeof globalThis !== "undefined" && (globalThis as any).crypto?.getRandomValues)
+    ? (globalThis as any).crypto.getRandomValues(new Uint8Array(remaining))
+    :  crypto.randomBytes(remaining);
+  for (let i = 0; i < remaining; i++) picks.push(all[bytes[i] % all.length]);
+  // simple shuffle
+  for (let i = picks.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [picks[i], picks[j]] = [picks[j], picks[i]]; }
+  return picks.join("");
+}
