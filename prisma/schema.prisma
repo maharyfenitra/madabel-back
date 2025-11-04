@@ -79,6 +79,9 @@ model EvaluationParticipant {
 
   createdAt      DateTime     @default(now())
 
+  // Réponses données par ce participant
+  answers         Answer[]
+
   @@unique([evaluationId, userId]) // empêche les doublons
 }
 
@@ -128,8 +131,21 @@ model Question {
   weight    Float?
   language  String?      @default("fr")
 
+  // Réponse correcte (utile pour correction automatique)
+  // Pour les questions à choix, on peut marquer l'option correcte via Option.isKey
+  // ou référencer directement une option ici pour les SINGLE_CHOICE
+  correctOptionId Int?
+  correctOption   Option? @relation("CorrectOption", fields: [correctOptionId], references: [id])
+
+  // Pour les questions texte/scale, on peut stocker la réponse correcte ici
+  correctText     String?
+  correctNumeric  Float?
+
   // Options / choix liés à la question (pour choice questions)
   options   Option[]
+
+  // Réponses associées à cette question
+  answers   Answer[]
 
   createdAt DateTime     @default(now())
   updatedAt DateTime     @updatedAt
@@ -148,6 +164,14 @@ model Option {
   isKey      Boolean? @default(false)
 
   createdAt  DateTime @default(now())
+
+  // Pour savoir quelles réponses ont sélectionné cette option
+  selectedByAnswers Answer[]
+  // Liens vers AnswerOption (multi-select)
+  answerSelections  AnswerOption[]
+
+  // Si cette option est référencée comme réponse correcte par une question
+  correctForQuestions Question[] @relation("CorrectOption")
 }
 
 /// Types de question supportés
@@ -156,4 +180,42 @@ enum QuestionType {
   MULTIPLE_CHOICE
   TEXT
   SCALE
+}
+
+// Stocke les réponses des participants (réponse unique / texte / valeur numérique)
+model Answer {
+  id                       Int                      @id @default(autoincrement())
+  // Lien optionnel vers le participant dans le contexte d'une évaluation
+  evaluationParticipant    EvaluationParticipant?   @relation(fields: [evaluationParticipantId], references: [id], onDelete: Cascade)
+  evaluationParticipantId  Int?
+
+  // Question répondue
+  question                 Question                 @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  questionId               Int
+
+  // Réponse choisie (pour SINGLE_CHOICE)
+  selectedOption           Option?                  @relation(fields: [selectedOptionId], references: [id], onDelete: Cascade)
+  selectedOptionId         Int?
+
+  // Réponse libre (TEXT)
+  textAnswer               String?
+
+  // Réponse numérique (SCALE)
+  numericAnswer            Float?
+
+  // Pour MULTIPLE_CHOICE : relation vers la table de jonction AnswerOption
+  selectedOptions          AnswerOption[]
+
+  createdAt                DateTime                 @default(now())
+}
+
+// Table de jonction pour stocker plusieurs options sélectionnées par réponse
+model AnswerOption {
+  id        Int    @id @default(autoincrement())
+  answer    Answer @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  answerId  Int
+  option    Option @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  optionId  Int
+
+  @@unique([answerId, optionId])
 }
