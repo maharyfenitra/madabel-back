@@ -21,6 +21,7 @@ export async function evaluationRoutes(fastify: FastifyInstance) {
 
   fastify.get<{
     Body: any;
+    Querystring: { page?: string; limit?: string }
   }>("/evaluations/", {}, handleFindEvaluations);
 
   fastify.get<{

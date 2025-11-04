@@ -28,6 +28,7 @@ export const handleAddParticipant = async (
             data: {
                 name,
                 email,
+                post,
                 password,
                 phone,
                 role

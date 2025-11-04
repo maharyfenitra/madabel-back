@@ -16,6 +16,9 @@ model User {
   name          String
   email         String?                  @unique
   phone         String                   @unique
+  post          String?
+  // Soft delete timestamp: when set, user is considered deleted
+  deletedAt     DateTime?
   password      String
   role          Role                     @default(CANDIDAT)
   avatar        String?
@@ -93,4 +96,64 @@ enum EvaluatorType {
   DIRECT_COLLEAGUE       // Collaborateur Direct
   PEER                   // Pair/Associé
   OTHER                  // Autres (client/fournisseur/famille/amis/etc.)
+}
+
+// --------------------------------------------------
+// Modèles pour stocker les questionnaires et questions
+// --------------------------------------------------
+
+/// Un questionnaire (template) contenant plusieurs questions
+model Quiz {
+  id          Int        @id @default(autoincrement())
+  title       String
+  description String?
+  isActive    Boolean    @default(true)
+
+  // Questions appartenant à ce quiz
+  questions   Question[]
+
+  createdAt   DateTime   @default(now())
+  updatedAt   DateTime   @updatedAt
+}
+
+/// Question du quiz (texte, type, ordre, poids, langue...)
+model Question {
+  id        Int          @id @default(autoincrement())
+  quiz      Quiz         @relation(fields: [quizId], references: [id])
+  quizId    Int
+
+  text      String
+  type      QuestionType @default(SINGLE_CHOICE)
+  order     Int          @default(0)
+  weight    Float?
+  language  String?      @default("fr")
+
+  // Options / choix liés à la question (pour choice questions)
+  options   Option[]
+
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+}
+
+/// Option (choix) pour une question
+model Option {
+  id         Int      @id @default(autoincrement())
+  question   Question @relation(fields: [questionId], references: [id])
+  questionId Int
+
+  text       String
+  // Valeur numérique associée au choix (utile pour scoring, échelles...)
+  value      Int?
+  // Indique si c'est la réponse clef (optionnel, utile pour quizzes à correction automatique)
+  isKey      Boolean? @default(false)
+
+  createdAt  DateTime @default(now())
+}
+
+/// Types de question supportés
+enum QuestionType {
+  SINGLE_CHOICE
+  MULTIPLE_CHOICE
+  TEXT
+  SCALE
 }
