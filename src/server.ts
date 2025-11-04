@@ -8,6 +8,8 @@ const server = Fastify({ logger: true });
 import { authRoutes } from "./modules/auths/authRoutes";
 import { userRoutes } from "./modules/users/userRoutes";
 import { evaluationRoutes } from "./modules/evaluations/evaluationRoutes";
+import { quizRoutes } from "./modules/quizzes/quizRoutes";
+import { questionRoutes } from "./modules/questions/questionRoutes";
 
 import fastifyStatic from "@fastify/static";
 import cors from "@fastify/cors";
@@ -26,6 +28,8 @@ server.register(fastifyStatic, {
 server.register(authRoutes);
 server.register(userRoutes);
 server.register(evaluationRoutes);
+server.register(quizRoutes);
+server.register(questionRoutes);
 
 // Démarrage du serveur
 const start = async () => {
