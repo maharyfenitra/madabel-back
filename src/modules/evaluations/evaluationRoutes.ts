@@ -5,6 +5,7 @@ import { handleFindEvaluationById } from "./handlers/handleFindEvaluationById";
 import { handleAddParticipant } from "./handlers/handleAddParticipant";
 import { handleFindEvaluators } from "./handlers/handleFindEvaluators";
 import { handleDeleteParticipant } from "./handlers/handleDeleteParticipant";
+import {handleUpdateEvaluation} from "./handlers/handleUpdateEvaluation";
 
 export async function evaluationRoutes(fastify: FastifyInstance) {
   fastify.post<{
@@ -18,6 +19,11 @@ export async function evaluationRoutes(fastify: FastifyInstance) {
   fastify.delete<{
     Params: { id: number };
   }>("/evaluations/delete/participant/:id", {}, handleDeleteParticipant);
+
+  fastify.put<{
+    Params?: { id?: string };
+    Body: any;
+  }>("/evaluations/:id", {}, handleUpdateEvaluation);
 
   fastify.get<{
     Body: any;
