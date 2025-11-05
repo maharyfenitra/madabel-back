@@ -55,6 +55,10 @@ model Evaluation {
   isCompleted  Boolean                   @default(false)
   role         String?
   
+  // Optional relation to a Quiz template
+  quiz        Quiz?     @relation(fields: [quizId], references: [id])
+  quizId      Int?
+  
   // 🔗 Relation avec les participants (candidats et évaluateurs)
   participants EvaluationParticipant[]
 
@@ -114,6 +118,9 @@ model Quiz {
 
   // Questions appartenant à ce quiz
   questions   Question[]
+  
+  // Evaluations created from this quiz template
+  evaluations Evaluation[]
 
   createdAt   DateTime   @default(now())
   updatedAt   DateTime   @updatedAt
