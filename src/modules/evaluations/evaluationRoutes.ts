@@ -5,6 +5,8 @@ import { handleFindEvaluationById } from "./handlers/handleFindEvaluationById";
 import { handleAddParticipant } from "./handlers/handleAddParticipant";
 import { handleFindEvaluators } from "./handlers/handleFindEvaluators";
 import { handleDeleteParticipant } from "./handlers/handleDeleteParticipant";
+import { handleSendMailParticipant } from "./handlers/handleSendMailParticipant";
+import candidateEvaluationRoutes from "../candidate-evaluations/candidateEvaluationRoutes";
 import {handleUpdateEvaluation} from "./handlers/handleUpdateEvaluation";
 
 export async function evaluationRoutes(fastify: FastifyInstance) {
@@ -41,4 +43,10 @@ export async function evaluationRoutes(fastify: FastifyInstance) {
     Body: any;
     Params: { id: number };
   }>("/evaluations/:id", {}, handleFindEvaluationById);
+
+  fastify.post<{
+    Params: { id: string };
+  }>("/evaluations/participant/:id/send-mail", {}, handleSendMailParticipant);
+
+  // candidateEvaluationRoutes is registered separately in server.ts to avoid duplicate routes
 }
