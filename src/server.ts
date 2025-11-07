@@ -9,6 +9,7 @@ import { authRoutes } from "./modules/auths/authRoutes";
 import { userRoutes } from "./modules/users/userRoutes";
 import { evaluationRoutes } from "./modules/evaluations/evaluationRoutes";
 import { quizRoutes } from "./modules/quizzes/quizRoutes";
+import { candidateEvaluationRoutes } from "./modules/candidate-evaluations/candidateEvaluationRoutes";
 import { questionRoutes } from "./modules/questions/questionRoutes";
 
 import fastifyStatic from "@fastify/static";
@@ -29,6 +30,7 @@ server.register(authRoutes);
 server.register(userRoutes);
 server.register(evaluationRoutes);
 server.register(quizRoutes);
+server.register(candidateEvaluationRoutes);
 server.register(questionRoutes);
 
 // Démarrage du serveur
