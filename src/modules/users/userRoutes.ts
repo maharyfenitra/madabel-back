@@ -6,6 +6,7 @@ import { handleCreateUser } from './handlers/handleCreateUser';
 import { handleFindUserById } from './handlers/handleFindUserById';
 import { handleUpdateUser } from './handlers/handleUpdateUser';
 import { handleDeleteUser } from './handlers/handleDeleteUser';
+import { handleSearchUsers } from './handlers/handleSearchUsers';
 
 export async function userRoutes(fastify: FastifyInstance) {
   // Register multipart support for file uploads
@@ -27,6 +28,10 @@ export async function userRoutes(fastify: FastifyInstance) {
     Body: any;
      Querystring: { page?: string; limit?: string }
   }>("/users/", {}, handleFindUsers);
+
+  fastify.get<{
+    Querystring: { q: string; page?: string; limit?: string }
+  }>("/users/search/", {}, handleSearchUsers);
 
   fastify.get<{
     Params: { id: string };
