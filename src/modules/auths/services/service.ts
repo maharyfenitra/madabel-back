@@ -2,6 +2,7 @@ import argon2 from "argon2";
 import jwt from "jsonwebtoken";
 import crypto from "crypto";
 import type { FastifyReply, FastifyRequest } from "fastify";
+import { prisma } from "../../../utils";
 
 const ACCESS_TOKEN_SECRET = process.env.JWT_SECRET!;
 const ACCESS_TOKEN_EXPIRES_IN = process.env.JWT_EXPIRES_IN ?? "1h";
@@ -64,6 +65,43 @@ export const verifyJWT = async (
     console.log(decoded)
   } catch (err) {
     throw reply.status(401).send({ err });
+  }
+};
+
+// Vérification du rôle admin
+export const verifyAdmin = async (
+  request: FastifyRequest,
+  reply: FastifyReply
+) => {
+  console.log("vérification admin");
+  const user = (request as any).user;
+
+  if (!user || !user.userId) {
+    throw reply.status(401).send({ error: "Utilisateur non authentifié" });
+  }
+
+  try {
+    const userData = await prisma.user.findFirst({
+      where: { id: user.userId, deletedAt: null },
+      select: { role: true },
+    });
+
+    if (!userData) {
+      throw reply.status(404).send({ error: "Utilisateur non trouvé" });
+    }
+
+    if (userData.role !== "ADMIN") {
+      throw reply.status(403).send({ error: "Accès refusé : droits administrateur requis" });
+    }
+
+    console.log("Utilisateur admin vérifié:", user.userId);
+    
+  } catch (err: any) {
+    if (err.statusCode) {
+      throw err; // Re-throw Fastify errors
+    }
+    console.error("Erreur lors de la vérification admin:", err);
+    throw reply.status(500).send({ error: "Erreur interne du serveur" });
   }
 };
 
