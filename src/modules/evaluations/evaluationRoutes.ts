@@ -6,11 +6,13 @@ import { handleAddParticipant } from "./handlers/handleAddParticipant";
 import { handleFindEvaluators } from "./handlers/handleFindEvaluators";
 import { handleDeleteParticipant } from "./handlers/handleDeleteParticipant";
 import { handleSendMailParticipant } from "./handlers/handleSendMailParticipant";
-import {handleUpdateEvaluation} from "./handlers/handleUpdateEvaluation";
+import { handleUpdateEvaluation } from "./handlers/handleUpdateEvaluation";
 import { handleDeleteEvaluation } from "./handlers/handleDeleteEvaluation";
 import { handleFindAllParticipants } from "./handlers/handleFindAllParticipants";
+import { verifyJWT } from "../auths/services";
 
 export async function evaluationRoutes(fastify: FastifyInstance) {
+  fastify.addHook("preHandler", verifyJWT);
   fastify.post<{
     Body: any;
   }>("/evaluations/", {}, handleCreateEvaluation);
@@ -36,7 +38,7 @@ export async function evaluationRoutes(fastify: FastifyInstance) {
 
   fastify.get<{
     Body: any;
-    Querystring: { page?: string; limit?: string }
+    Querystring: { page?: string; limit?: string };
   }>("/evaluations/", {}, handleFindEvaluations);
 
   fastify.get<{
