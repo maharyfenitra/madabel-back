@@ -36,6 +36,23 @@ export const handleAddParticipant = async (
         })
      }
 
+     // Check if user is already a participant in this evaluation
+     const existingParticipant = await prisma.evaluationParticipant.findUnique({
+        where: {
+            evaluationId_userId: {
+                evaluationId,
+                userId: user.id
+            }
+        }
+     })
+
+     if(existingParticipant){
+        return reply.status(400).send({
+            error: "Cet utilisateur est déjà participant de cette évaluation",
+            participant: existingParticipant
+        })
+     }
+
      const participant = await prisma.evaluationParticipant.create({
         data: {
             userId: user.id,

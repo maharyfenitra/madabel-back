@@ -27,23 +27,51 @@ export const handleSubmitAnswers = async (req: FastifyRequest, reply: FastifyRep
 
     await prisma.$transaction(async (tx) => {
       for (const a of answers) {
-        const created = await tx.answer.create({
-          data: {
+        // Check if answer already exists for this participant and question
+        const existingAnswer = await tx.answer.findFirst({
+          where: {
             evaluationParticipantId: participantId,
-            questionId: a.questionId,
-            selectedOptionId: a.selectedOptionId ?? null,
-            textAnswer: a.textAnswer ?? null,
-            numericAnswer: typeof a.numericAnswer === 'number' ? a.numericAnswer : null,
+            questionId: a.questionId
           }
         });
 
-        // if multiple choice selectedOptionIds provided
+        let answer;
+        if (existingAnswer) {
+          // Update existing answer
+          answer = await tx.answer.update({
+            where: { id: existingAnswer.id },
+            data: {
+              selectedOptionId: a.selectedOptionId ?? null,
+              textAnswer: a.textAnswer ?? null,
+              numericAnswer: typeof a.numericAnswer === 'number' ? a.numericAnswer : null,
+            }
+          });
+
+          // Delete existing answer options for multiple choice
+          await tx.answerOption.deleteMany({
+            where: { answerId: existingAnswer.id }
+          });
+          
+        } else {
+          // Create new answer
+          answer = await tx.answer.create({
+            data: {
+              evaluationParticipantId: participantId,
+              questionId: a.questionId,
+              selectedOptionId: a.selectedOptionId ?? null,
+              textAnswer: a.textAnswer ?? null,
+              numericAnswer: typeof a.numericAnswer === 'number' ? a.numericAnswer : null,
+            }
+          });
+        }
+
+        // Handle multiple choice options
         if (Array.isArray(a.selectedOptionIds) && a.selectedOptionIds.length > 0) {
-          const toCreate = a.selectedOptionIds.map((optId: number) => ({ answerId: created.id, optionId: optId }));
+          const toCreate = a.selectedOptionIds.map((optId: number) => ({ answerId: answer.id, optionId: optId }));
           await tx.answerOption.createMany({ data: toCreate });
         }
 
-        createdAnswers.push(created);
+        createdAnswers.push(answer);
       }
 
       // Optionally mark evaluation as completed for this participant
