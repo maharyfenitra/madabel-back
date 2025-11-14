@@ -137,6 +137,7 @@ model Question {
 
   text      String
   type      QuestionType @default(SINGLE_CHOICE)
+  category  QuestionCategory @default(SUMMIT)
   order     Int          @default(0)
   weight    Float?
   language  String?      @default("fr")
@@ -190,6 +191,15 @@ enum QuestionType {
   MULTIPLE_CHOICE
   TEXT
   SCALE
+}
+
+/// Catégories de questions
+enum QuestionCategory {
+  POSITION
+  PERMISSION
+  PRODUCTION
+  DEVELOPMENT_OF_OTHERS
+  SUMMIT
 }
 
 // Stocke les réponses des participants (réponse unique / texte / valeur numérique)

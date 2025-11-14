@@ -2,6 +2,7 @@ import type { FastifyInstance } from "fastify";
 import { handleGetQuizForCandidate } from "./handlers/handleGetQuizForCandidate";
 import { handleSubmitAnswers } from "./handlers/handleSubmitAnswers";
 import { handleFindCandidateEvaluations } from "./handlers/handleFindCandidateEvaluations";
+import { handleGetCandidateAnswers } from "./handlers/handleGetCandidateAnswers";
 import { verifyJWT } from "../auths/services/service";
 
 export async function candidateEvaluationRoutes(fastify: FastifyInstance) {
@@ -20,6 +21,11 @@ export async function candidateEvaluationRoutes(fastify: FastifyInstance) {
     Params: { participantId: string };
     Body: any;
   }>("/candidate-evaluations/participant/:participantId/", { preHandler: verifyJWT }, handleSubmitAnswers);
+
+  // Get candidate's previous answers for a specific evaluation
+  fastify.get<{
+    Params: { evaluationId: string };
+  }>("/candidate-evaluations/:evaluationId/answers", { preHandler: verifyJWT }, handleGetCandidateAnswers);
 }
 
 export default candidateEvaluationRoutes;

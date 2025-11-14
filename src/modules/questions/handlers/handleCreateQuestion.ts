@@ -14,6 +14,7 @@ export const handleCreateQuestion = async (req: FastifyRequest, reply: FastifyRe
       quizId,
       text: String(body.text),
       type: body.type || 'SINGLE_CHOICE',
+      category: body.category || 'SUMMIT',
       order: typeof body.order === 'number' ? body.order : 0,
       weight: typeof body.weight === 'number' ? body.weight : undefined,
       language: body.language || 'fr',
