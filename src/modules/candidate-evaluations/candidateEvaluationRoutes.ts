@@ -19,7 +19,7 @@ export async function candidateEvaluationRoutes(fastify: FastifyInstance) {
   fastify.post<{
     Params: { participantId: string };
     Body: any;
-  }>("/candidate-evaluations/participant/:participantId/submit", {}, handleSubmitAnswers);
+  }>("/candidate-evaluations/participant/:participantId/", { preHandler: verifyJWT }, handleSubmitAnswers);
 }
 
 export default candidateEvaluationRoutes;

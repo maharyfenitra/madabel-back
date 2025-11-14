@@ -4,6 +4,8 @@ import { prisma } from "../../../utils";
 /*
  Expected body shape:
  {
+   evaluationId: number, // ID de l'évaluation (pour validation)
+   isDraft?: boolean, // true pour sauvegarde automatique (brouillon), false pour soumission finale
    answers: [
      { questionId: number, selectedOptionId?: number, selectedOptionIds?: number[], textAnswer?: string, numericAnswer?: number }
    ]
@@ -13,16 +15,31 @@ import { prisma } from "../../../utils";
 export const handleSubmitAnswers = async (req: FastifyRequest, reply: FastifyReply) => {
   try {
     const params = req.params as any;
+
+    const user = (req as any)?.user;
+
     const participantId = parseInt(params.participantId, 10);
     if (Number.isNaN(participantId)) return reply.status(400).send({ error: 'participantId invalide' });
 
     const body = req.body as any;
     const answers = Array.isArray(body.answers) ? body.answers : [];
+    const evaluationIdFromBody = body.evaluationId ? parseInt(body.evaluationId, 10) : null;
+    const isDraft = body.isDraft === true; // Par défaut false si non spécifié
 
-    // Verify participant exists
-    const participant = await prisma.evaluationParticipant.findUnique({ where: { id: participantId } });
+    // Verify participant exists and get evaluation info
+    const participant = await prisma.evaluationParticipant.findFirst({
+      where: { userId: user.userId, evaluationId: params?.evaluationId },
+      include: { evaluation: true }
+    });
+
     if (!participant) return reply.status(404).send({ error: 'Participant introuvable' });
 
+    // Validate that evaluationId from body matches the participant's evaluation
+    if (evaluationIdFromBody && evaluationIdFromBody !== participant.evaluationId) {
+      return reply.status(400).send({ error: 'evaluationId du body ne correspond pas à l\'évaluation du participant' });
+    }
+
+    const evaluationId = participant.evaluationId;
     const createdAnswers: any[] = [];
 
     await prisma.$transaction(async (tx) => {
@@ -41,9 +58,12 @@ export const handleSubmitAnswers = async (req: FastifyRequest, reply: FastifyRep
           answer = await tx.answer.update({
             where: { id: existingAnswer.id },
             data: {
+              evaluationId: evaluationId,
               selectedOptionId: a.selectedOptionId ?? null,
               textAnswer: a.textAnswer ?? null,
               numericAnswer: typeof a.numericAnswer === 'number' ? a.numericAnswer : null,
+              submittedAt: isDraft ? null : new Date(),
+              isDraft: isDraft,
             }
           });
 
@@ -51,16 +71,19 @@ export const handleSubmitAnswers = async (req: FastifyRequest, reply: FastifyRep
           await tx.answerOption.deleteMany({
             where: { answerId: existingAnswer.id }
           });
-          
+
         } else {
           // Create new answer
           answer = await tx.answer.create({
             data: {
+              evaluationId: evaluationId,
               evaluationParticipantId: participantId,
               questionId: a.questionId,
               selectedOptionId: a.selectedOptionId ?? null,
               textAnswer: a.textAnswer ?? null,
               numericAnswer: typeof a.numericAnswer === 'number' ? a.numericAnswer : null,
+              submittedAt: isDraft ? null : new Date(),
+              isDraft: isDraft,
             }
           });
         }
