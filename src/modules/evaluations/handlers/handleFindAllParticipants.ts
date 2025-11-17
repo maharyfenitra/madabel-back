@@ -18,6 +18,8 @@ export const handleFindAllParticipants = async (
             evaluationId: true,
             participantRole: true,
             evaluatorType: true,
+            mailSentAt: true,
+            reminderSentAt: true,
             user: {
                 select: {
                     id: true,

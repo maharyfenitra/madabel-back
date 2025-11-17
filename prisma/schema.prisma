@@ -84,6 +84,11 @@ model EvaluationParticipant {
 
   evaluatorType   EvaluatorType?
 
+  // Date d'envoi du mail d'invitation
+  mailSentAt      DateTime?
+  // Date d'envoi de la relance
+  reminderSentAt  DateTime?
+
   createdAt      DateTime     @default(now())
 
   // Réponses données par ce participant
