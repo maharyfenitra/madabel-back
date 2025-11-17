@@ -118,6 +118,8 @@ model Quiz {
   title       String
   description String?
   isActive    Boolean    @default(true)
+  // Soft delete timestamp: when set, quiz is considered deleted
+  deletedAt   DateTime?
 
   // Questions appartenant à ce quiz
   questions   Question[]

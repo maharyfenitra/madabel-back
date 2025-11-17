@@ -8,7 +8,10 @@ export const handleFindQuizById = async (req: FastifyRequest, reply: FastifyRepl
     if (Number.isNaN(id)) return reply.status(400).send({ error: 'ID invalide' });
 
     const quiz = await prisma.quiz.findUnique({
-      where: { id },
+      where: { 
+        id,
+        deletedAt: null // Exclure les quizzes supprimés (soft delete)
+      },
       include: { questions: { include: { options: true } } }
     });
 

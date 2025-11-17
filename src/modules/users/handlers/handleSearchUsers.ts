@@ -66,6 +66,7 @@ export const handleSearchUsers = async (
         phone: true,
         avatar: true,
         role: true,
+        post: true,
         createdAt: true,
       },
     });

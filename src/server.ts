@@ -11,6 +11,8 @@ import { evaluationRoutes } from "./modules/evaluations/evaluationRoutes";
 import { quizRoutes } from "./modules/quizzes/quizRoutes";
 import { candidateEvaluationRoutes } from "./modules/candidate-evaluations/candidateEvaluationRoutes";
 import { questionRoutes } from "./modules/questions/questionRoutes";
+import { reportRoutes } from "./modules/reports/reportRoutes";
+import { profileRoutes } from "./modules/profiles/profile";
 
 import fastifyStatic from "@fastify/static";
 import cors from "@fastify/cors";
@@ -22,8 +24,8 @@ server.register(cors, {
 });
 
 server.register(fastifyStatic, {
-  root: path.join(process.cwd(), "public"), // le dossier uploads
-  prefix: "/",                       // accessible via http://localhost:3000/uploads/nom_du_fichier
+  root: path.join(process.cwd(), "public"),
+  prefix: "/",
 })
 
 server.register(authRoutes);
@@ -32,6 +34,8 @@ server.register(evaluationRoutes);
 server.register(quizRoutes);
 server.register(candidateEvaluationRoutes);
 server.register(questionRoutes);
+server.register(reportRoutes);
+server.register(profileRoutes);
 
 // Démarrage du serveur
 const start = async () => {
