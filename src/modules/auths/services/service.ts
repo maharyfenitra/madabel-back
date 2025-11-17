@@ -9,9 +9,6 @@ const ACCESS_TOKEN_EXPIRES_IN = process.env.JWT_EXPIRES_IN ?? "1h";
 const REFRESH_TOKEN_SECRET = process.env.JWT_REFRESH_SECRET!;
 const REFRESH_TOKEN_EXPIRES_IN = process.env.JWT_REFRESH_EXPIRES_IN ?? "7d";
 
-console.log("JWT_SECRET:", process.env.JWT_SECRET);
-console.log("JWT_REFRESH_SECRET:", process.env.JWT_REFRESH_SECRET);
-
 // hash & verify
 export async function hashPassword(password: string) {
   return await argon2.hash(password);
@@ -62,7 +59,7 @@ export const verifyJWT = async (
   try {
     const decoded = verifyAccessToken(token);
     (request as any).user = decoded; // stock le payload
-    console.log(decoded)
+    
   } catch (err) {
     throw reply.status(401).send({ err });
   }

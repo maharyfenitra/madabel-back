@@ -62,6 +62,9 @@ model Evaluation {
   // 🔗 Relation avec les participants (candidats et évaluateurs)
   participants EvaluationParticipant[]
 
+  // Réponses données dans cette évaluation
+  answers      Answer[]
+
   // timestamps
   updatedAt    DateTime                  @updatedAt
 }
@@ -80,6 +83,11 @@ model EvaluationParticipant {
   participantRole Role
 
   evaluatorType   EvaluatorType?
+
+  // Date d'envoi du mail d'invitation
+  mailSentAt      DateTime?
+  // Date d'envoi de la relance
+  reminderSentAt  DateTime?
 
   createdAt      DateTime     @default(now())
 
@@ -115,6 +123,8 @@ model Quiz {
   title       String
   description String?
   isActive    Boolean    @default(true)
+  // Soft delete timestamp: when set, quiz is considered deleted
+  deletedAt   DateTime?
 
   // Questions appartenant à ce quiz
   questions   Question[]
@@ -134,6 +144,7 @@ model Question {
 
   text      String
   type      QuestionType @default(SINGLE_CHOICE)
+  category  QuestionCategory @default(SUMMIT)
   order     Int          @default(0)
   weight    Float?
   language  String?      @default("fr")
@@ -189,10 +200,22 @@ enum QuestionType {
   SCALE
 }
 
+/// Catégories de questions
+enum QuestionCategory {
+  POSITION
+  PERMISSION
+  PRODUCTION
+  DEVELOPMENT_OF_OTHERS
+  SUMMIT
+}
+
 // Stocke les réponses des participants (réponse unique / texte / valeur numérique)
 model Answer {
   id                       Int                      @id @default(autoincrement())
-  // Lien optionnel vers le participant dans le contexte d'une évaluation
+
+  // 🔗 Liens vers l'évaluation et le participant
+  evaluation               Evaluation?              @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  evaluationId             Int?
   evaluationParticipant    EvaluationParticipant?   @relation(fields: [evaluationParticipantId], references: [id], onDelete: Cascade)
   evaluationParticipantId  Int?
 
@@ -213,7 +236,12 @@ model Answer {
   // Pour MULTIPLE_CHOICE : relation vers la table de jonction AnswerOption
   selectedOptions          AnswerOption[]
 
+  // Métadonnées supplémentaires
+  submittedAt              DateTime?                // Date de soumission de la réponse
+  isDraft                  Boolean                  @default(false) // Permet de sauvegarder des brouillons
+
   createdAt                DateTime                 @default(now())
+  updatedAt                DateTime                 @default(now()) @updatedAt
 }
 
 // Table de jonction pour stocker plusieurs options sélectionnées par réponse

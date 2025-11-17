@@ -15,6 +15,7 @@ export const handleCreateUser = async (req: FastifyRequest, reply: FastifyReply)
     const email = body.email?.value || body.email;
     const phone = body.phone?.value || body.phone;
     const role = body.role?.value || body.role;
+    const post = body.post?.value || body.post;
     const password = body.password?.value || body.password;
 
     // Validation des champs requis
@@ -74,6 +75,7 @@ export const handleCreateUser = async (req: FastifyRequest, reply: FastifyReply)
         email: email ? String(email).toLowerCase() : "",
         phone: String(phone),
         role,
+        post: post ? String(post) : null,
         password: passwordHash,
         avatar: avatarFileName,
       },

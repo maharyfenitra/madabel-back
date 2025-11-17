@@ -16,7 +16,10 @@ export const handleUpdateQuiz = async (req: FastifyRequest, reply: FastifyReply)
     if (typeof body.isActive !== 'undefined') data.isActive = Boolean(body.isActive);
 
     const quiz = await prisma.quiz.update({
-      where: { id },
+      where: { 
+        id,
+        deletedAt: null // Ne permettre la mise à jour que des quizzes non supprimés
+      },
       data,
       include: { questions: { include: { options: true } } }
     });

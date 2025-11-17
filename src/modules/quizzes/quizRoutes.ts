@@ -4,7 +4,7 @@ import { handleFindQuizzes } from "./handlers/handleFindQuizzes";
 import { handleFindQuizById } from "./handlers/handleFindQuizById";
 import { handleUpdateQuiz } from "./handlers/handleUpdateQuiz";
 import { handleDeleteQuiz } from "./handlers/handleDeleteQuiz";
-import { verifyJWT } from "../auths/services";
+import { verifyJWT, verifyAdmin } from "../auths/services";
 
 export async function quizRoutes(fastify: FastifyInstance) {
   fastify.addHook("preHandler", verifyJWT);
@@ -17,7 +17,11 @@ export async function quizRoutes(fastify: FastifyInstance) {
     handleFindQuizById
   );
 
-  fastify.post<{ Body: any }>("/quizzes/", {}, handleCreateQuiz);
+  fastify.post<{ Body: any }>(
+    "/quizzes/",
+    { preHandler: verifyAdmin },
+    handleCreateQuiz
+  );
 
   fastify.put<{ Params: { id?: string }; Body: any }>(
     "/quizzes/",
@@ -26,18 +30,18 @@ export async function quizRoutes(fastify: FastifyInstance) {
   );
   fastify.put<{ Params: { id: string }; Body: any }>(
     "/quizzes/:id",
-    {},
+    { preHandler: verifyAdmin },
     handleUpdateQuiz
   );
 
   fastify.delete<{ Params: { id?: string } }>(
     "/quizzes/",
-    {},
+    { preHandler: verifyAdmin },
     handleDeleteQuiz
   );
   fastify.delete<{ Params: { id: string } }>(
     "/quizzes/:id",
-    {},
+    { preHandler: verifyAdmin },
     handleDeleteQuiz
   );
 }

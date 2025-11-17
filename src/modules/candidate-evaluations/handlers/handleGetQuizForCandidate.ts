@@ -19,7 +19,10 @@ export const handleGetQuizForCandidate = async (req: FastifyRequest, reply: Fast
 
     // Récupérer le quiz avec le nombre total de questions
     const quiz = await prisma.quiz.findUnique({
-      where: { id: quizId },
+      where: { 
+        id: quizId,
+        deletedAt: null // Exclure les quizzes supprimés (soft delete)
+      },
       include: {
         questions: {
           include: { options: true },

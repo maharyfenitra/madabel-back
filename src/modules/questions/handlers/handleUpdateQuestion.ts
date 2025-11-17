@@ -11,6 +11,7 @@ export const handleUpdateQuestion = async (req: FastifyRequest, reply: FastifyRe
     const data: any = {};
     if (typeof body.text !== 'undefined') data.text = String(body.text);
     if (typeof body.type !== 'undefined') data.type = body.type;
+    if (typeof body.category !== 'undefined') data.category = body.category;
     if (typeof body.order !== 'undefined') data.order = Number(body.order);
     if (typeof body.weight !== 'undefined') data.weight = typeof body.weight === 'number' ? body.weight : undefined;
     if (typeof body.language !== 'undefined') data.language = body.language;

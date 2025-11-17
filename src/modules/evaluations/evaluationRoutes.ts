@@ -6,6 +6,7 @@ import { handleAddParticipant } from "./handlers/handleAddParticipant";
 import { handleFindEvaluators } from "./handlers/handleFindEvaluators";
 import { handleDeleteParticipant } from "./handlers/handleDeleteParticipant";
 import { handleSendMailParticipant } from "./handlers/handleSendMailParticipant";
+import { handleSendReminderParticipant } from "./handlers/handleSendReminderParticipant";
 import { handleUpdateEvaluation } from "./handlers/handleUpdateEvaluation";
 import { handleDeleteEvaluation } from "./handlers/handleDeleteEvaluation";
 import { handleFindAllParticipants } from "./handlers/handleFindAllParticipants";
@@ -64,5 +65,7 @@ export async function evaluationRoutes(fastify: FastifyInstance) {
     Params: { id: string };
   }>("/evaluations/participant/:id/send-mail", {}, handleSendMailParticipant);
 
-  // candidateEvaluationRoutes is registered separately in server.ts to avoid duplicate routes
+  fastify.post<{
+    Params: { id: string };
+  }>("/evaluations/participant/:id/send-reminder", {}, handleSendReminderParticipant);
 }

@@ -7,8 +7,10 @@ import { handleFindUserById } from './handlers/handleFindUserById';
 import { handleUpdateUser } from './handlers/handleUpdateUser';
 import { handleDeleteUser } from './handlers/handleDeleteUser';
 import { handleSearchUsers } from './handlers/handleSearchUsers';
+import { verifyJWT, verifyAdmin } from "../auths/services";
 
 export async function userRoutes(fastify: FastifyInstance) {
+  fastify.addHook("preHandler", verifyJWT);
   // Register multipart support for file uploads
     await fastify.register(multipart, {
       attachFieldsToBody: true, // ✅ Important pour accéder aux champs
@@ -27,7 +29,7 @@ export async function userRoutes(fastify: FastifyInstance) {
   fastify.get<{
     Body: any;
      Querystring: { page?: string; limit?: string }
-  }>("/users/", {}, handleFindUsers);
+  }>("/users/", { }, handleFindUsers);
 
   fastify.get<{
     Querystring: { q: string; page?: string; limit?: string }
@@ -39,26 +41,26 @@ export async function userRoutes(fastify: FastifyInstance) {
 
   fastify.post<{
     Body: any;
-  }>("/users/", {}, handleCreateUser);
+  }>("/users/", { preHandler: verifyAdmin }, handleCreateUser);
 
   // Update user: accept id in body or in params
   fastify.put<{
     Params: { id?: string };
     Body: any;
-  }>("/users/", {}, handleUpdateUser);
+  }>("/users/", { preHandler: verifyAdmin}, handleUpdateUser);
 
   fastify.put<{
     Params: { id: string };
     Body: any;
-  }>("/users/:id", {}, handleUpdateUser);
+  }>("/users/:id", { preHandler: verifyAdmin }, handleUpdateUser);
 
   fastify.delete<{
     Params: { id?: string };
     Body: any;
-  }>("/users/", {}, handleDeleteUser);
+  }>("/users/", { preHandler: verifyAdmin }, handleDeleteUser);
 
   fastify.delete<{
     Params: { id: string };
     Body: any;
-  }>("/users/:id", {}, handleDeleteUser);
+  }>("/users/:id", { preHandler: verifyAdmin }, handleDeleteUser);
 }

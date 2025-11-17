@@ -8,11 +8,11 @@ export const handleDeleteQuiz = async (req: FastifyRequest, reply: FastifyReply)
     const id = parseInt(idParam, 10);
     if (Number.isNaN(id)) return reply.status(400).send({ error: 'ID invalide' });
 
-    // Supprimer d'abord les options et questions (sécurité si DB interdit la suppression en cascade)
-    await prisma.option.deleteMany({ where: { question: { quizId: id } as any } as any });
-    await prisma.question.deleteMany({ where: { quizId: id } });
-
-    const quiz = await prisma.quiz.delete({ where: { id } });
+    // Soft delete : marquer comme supprimé au lieu de supprimer physiquement
+    const quiz = await prisma.quiz.update({
+      where: { id },
+      data: { deletedAt: new Date() }
+    });
 
     return reply.status(200).send({ quiz });
   } catch (error: any) {
