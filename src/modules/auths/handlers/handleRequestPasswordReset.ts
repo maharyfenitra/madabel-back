@@ -66,7 +66,7 @@ export const handleRequestPasswordReset = async (
     });
 
     // Construire le lien de réinitialisation
-    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+    const frontendUrl = process.env.FRONTEND_URL || "http://79.137.77.156:3000";
     const resetLink = `${frontendUrl}/auth/reset-password?token=${resetToken}`;
 
     const subject = "Réinitialisation de votre mot de passe - MADABEL";
