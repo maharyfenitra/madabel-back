@@ -1,7 +1,7 @@
 import multipart from '@fastify/multipart';
 
 import type { FastifyInstance } from "fastify";
-import { handleSignUp, handleLogin, handleLogout } from "./handlers";
+import { handleSignUp, handleLogin, handleLogout, handleRequestPasswordReset, handleResetPassword } from "./handlers";
 import type {  LoginBody, RefreshBody } from "./handlers";
 import { handleTest } from "./handlers/handleTest";
 
@@ -40,4 +40,14 @@ export async function authRoutes(fastify: FastifyInstance) {
   fastify.get<{
     Body: RefreshBody;
   }>("/auth/test/", handleTest);
+
+  // Demande de réinitialisation de mot de passe
+  fastify.post<{
+    Body: { email: string };
+  }>("/auth/request-password-reset/", handleRequestPasswordReset);
+
+  // Réinitialisation du mot de passe
+  fastify.post<{
+    Body: { token: string; newPassword: string };
+  }>("/auth/reset-password/", handleResetPassword);
 }
