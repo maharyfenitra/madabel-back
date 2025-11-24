@@ -13,6 +13,14 @@ export const handleLogin = async (req: FastifyRequest<{ Body: LoginBody }>, repl
   const valid = await verifyPassword(user.password, password);
   if (!valid) return reply.status(401).send({ error: "Invalid credentials" });
 
+  // Marquer que l'utilisateur s'est connecté au moins une fois
+  if (user.isFirstLogin) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { isFirstLogin: false }
+    });
+  }
+
   const accessToken = generateAccessToken(user.id);
   const refreshToken = generateRefreshToken(user.id);
 

@@ -20,6 +20,7 @@ export const handleFindAllParticipants = async (
             evaluatorType: true,
             mailSentAt: true,
             reminderSentAt: true,
+            reminderCount: true,
             user: {
                 select: {
                     id: true,
