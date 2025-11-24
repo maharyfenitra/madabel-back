@@ -1,6 +1,7 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { prisma } from "../../../utils";
 import nodemailer from "nodemailer";
+import { generatePassword, hashPassword } from "../../auths/services";
 
 export const handleSendMailParticipant = async (req: FastifyRequest, reply: FastifyReply) => {
   try {
@@ -62,6 +63,32 @@ export const handleSendMailParticipant = async (req: FastifyRequest, reply: Fast
 
     const subject = `Invitation à l'évaluation ${participant.evaluation?.ref ?? ''}`;
 
+    // Générer un mot de passe temporaire si c'est la première connexion
+    let temporaryPassword = "";
+    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+    
+    if (participant.user.isFirstLogin) {
+      // Générer un mot de passe aléatoire
+      temporaryPassword = generatePassword(12);
+      
+      // Hasher et mettre à jour le mot de passe de l'utilisateur
+      const hashedPassword = await hashPassword(temporaryPassword);
+      await prisma.user.update({
+        where: { id: participant.user.id },
+        data: { password: hashedPassword }
+      });
+    }
+
+    const loginInstructions = participant.user.isFirstLogin 
+      ? `Pour vous connecter pour la première fois :
+- Connectez-vous sur : ${frontendUrl}/auth/login
+- Utilisez votre adresse email (${toEmail}) comme identifiant
+- Utilisez le mot de passe temporaire suivant : ${temporaryPassword}
+- Nous vous recommandons de changer ce mot de passe après votre première connexion`
+      : `Pour vous connecter :
+- Connectez-vous sur : ${frontendUrl}/auth/login
+- Utilisez votre adresse email (${toEmail}) et votre mot de passe habituel`;
+
     const text = `Cher ${participant.user.name},
 
 ${candidatName} vous a demandé de bien vouloir l'évaluer dans le cadre de l'évaluation du leadership de MADABEL.
@@ -70,10 +97,7 @@ L'évaluation est composée de 64 questions sur les compétences de leadership e
 
 Veuillez compléter l'évaluation au plus tard le ${formattedDeadline}. Nous vous recommandons de compléter l'évaluation dans un délai d'une semaine. Nous vous remercions d'avance pour vos réponses et commentaires que vous voudrez bien indiquer dans le questionnaire.
 
-Pour accéder à l'évaluation, il vous suffit de suivre les instructions reprises ci-dessous :
-- Cliquez sur le lien web ci-dessous ou copiez et collez l'adresse complète dans votre navigateur web.
-- Cliquez sur Connexion et suivez les instructions à l'écran.
-- Pour vous connecter, utilisez votre adresse mail comme identifiant et le mot de passe suivant.
+${loginInstructions}
 
 Si vous avez des questions concernant ces instructions, veuillez contacter le SUPERADMIN MADABEL à l'adresse admin@madabel.com.
 
@@ -94,12 +118,19 @@ L'équipe Madabel`;
       
       <p>Veuillez compléter l'évaluation au plus tard le <strong>${formattedDeadline}</strong>. Nous vous recommandons de compléter l'évaluation dans un délai d'une semaine. Nous vous remercions d'avance pour vos réponses et commentaires que vous voudrez bien indiquer dans le questionnaire.</p>
       
-      <p>Pour accéder à l'évaluation, il vous suffit de suivre les instructions reprises ci-dessous :</p>
+      ${participant.user.isFirstLogin 
+        ? `<p><strong>Pour vous connecter pour la première fois :</strong></p>
+      <ol>
+        <li>Connectez-vous sur : <a href="${frontendUrl}/auth/login" style="color: #007bff; text-decoration: none;">${frontendUrl}/auth/login</a></li>
+        <li>Utilisez votre adresse email (<strong>${toEmail}</strong>) comme identifiant</li>
+        <li>Utilisez le mot de passe temporaire suivant : <strong style="background-color: #f0f0f0; padding: 5px 10px; border-radius: 4px; font-family: monospace;">${temporaryPassword}</strong></li>
+        <li>Nous vous recommandons de changer ce mot de passe après votre première connexion</li>
+      </ol>`
+        : `<p><strong>Pour vous connecter :</strong></p>
       <ul>
-        <li>Cliquez sur le lien web ci-dessous ou copiez et collez l'adresse complète dans votre navigateur web.</li>
-        <li>Cliquez sur Connexion et suivez les instructions à l'écran.</li>
-        <li>Pour vous connecter, utilisez votre adresse mail comme identifiant et le mot de passe suivant.</li>
-      </ul>
+        <li>Connectez-vous sur : <a href="${frontendUrl}/auth/login" style="color: #007bff; text-decoration: none;">${frontendUrl}/auth/login</a></li>
+        <li>Utilisez votre adresse email (<strong>${toEmail}</strong>) et votre mot de passe habituel</li>
+      </ul>`}
       
       <p>Si vous avez des questions concernant ces instructions, veuillez contacter le SUPERADMIN MADABEL à l'adresse <a href="mailto:admin@madabel.com">admin@madabel.com</a>.</p>
       

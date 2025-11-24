@@ -22,6 +22,7 @@ model User {
   password      String
   role          Role                     @default(CANDIDAT)
   avatar        String?
+  isFirstLogin  Boolean                  @default(true)
   createdAt     DateTime                 @default(now())
 
   // 🔐 Auth
@@ -102,6 +103,8 @@ model EvaluationParticipant {
   mailSentAt      DateTime?
   // Date d'envoi de la relance
   reminderSentAt  DateTime?
+  // Nombre de relances envoyées
+  reminderCount   Int          @default(0)
 
   createdAt      DateTime     @default(now())
 
