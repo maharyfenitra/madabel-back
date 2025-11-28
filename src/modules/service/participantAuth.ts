@@ -26,7 +26,7 @@ export const getLoginInstructions = (
   isFirstLogin: boolean,
   temporaryPassword?: string
 ): { text: string; html: string } => {
-  const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
+  const frontendUrl = "https://evaluation.madabel.com/";
   const loginUrl = `${frontendUrl}/auth/login`;
 
   if (isFirstLogin && temporaryPassword) {
