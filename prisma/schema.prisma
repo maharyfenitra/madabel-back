@@ -105,6 +105,8 @@ model EvaluationParticipant {
   reminderSentAt  DateTime?
   // Nombre de relances envoyées
   reminderCount   Int          @default(0)
+  // Date de complétion de l'évaluation par ce participant
+  completedAt     DateTime?
 
   createdAt      DateTime     @default(now())
 

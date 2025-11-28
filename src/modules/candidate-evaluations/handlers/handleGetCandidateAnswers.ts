@@ -15,19 +15,41 @@ export async function handleGetCandidateAnswers(
       return reply.status(401).send({ error: "Utilisateur non authentifié" });
     }
 
-    // Vérifier que l'utilisateur est bien un participant de cette évaluation
-    const evaluationParticipant = await prisma.evaluationParticipant.findFirst({
-      where: {
-        evaluationId: parseInt(evaluationId),
-        userId: user.userId,
-        participantRole: "EVALUATOR",
-      },
-    });
+    // Si l'utilisateur est ADMIN, récupérer tous les participants
+    // Sinon, vérifier qu'il est bien un participant de cette évaluation
+    let evaluationParticipant;
 
-    if (!evaluationParticipant) {
-      return reply.status(403).send({
-        error: "Vous n'êtes pas autorisé à accéder à cette évaluation",
+    if (user.role === "ADMIN") {
+      // Pour l'admin, récupérer tous les participants de l'évaluation
+      const allParticipants = await prisma.evaluationParticipant.findMany({
+        where: {
+          evaluationId: parseInt(evaluationId),
+        },
       });
+
+      if (allParticipants.length === 0) {
+        return reply.status(404).send({
+          error: "Aucun participant trouvé pour cette évaluation",
+        });
+      }
+
+      // Utiliser le premier participant (ou on pourrait récupérer toutes les réponses)
+      evaluationParticipant = allParticipants[0];
+    } else {
+      // Pour les autres utilisateurs, vérifier qu'ils sont participants
+      evaluationParticipant = await prisma.evaluationParticipant.findFirst({
+        where: {
+          evaluationId: parseInt(evaluationId),
+          userId: user.userId,
+          participantRole: { in: ["EVALUATOR", "CANDIDAT"] },
+        },
+      });
+
+      if (!evaluationParticipant) {
+        return reply.status(403).send({
+          error: "Vous n'êtes pas autorisé à accéder à cette évaluation",
+        });
+      }
     }
 
     // Récupérer toutes les réponses de ce participant pour cette évaluation
@@ -109,6 +131,7 @@ export async function handleGetCandidateAnswers(
     return reply.send({
       evaluationId: parseInt(evaluationId),
       participantId: evaluationParticipant.id,
+      completedAt: evaluationParticipant.completedAt,
       answers: formattedAnswers,
       totalAnswers: formattedAnswers.length,
     });

@@ -24,6 +24,7 @@
     "fastify": "^5.6.1",
     "jsonwebtoken": "^9.0.2",
     "nodemailer": "^6.9.3",
+    "pdfkit": "^0.17.2",
     "socket.io": "^4.8.1"
   },
   "devDependencies": {
@@ -31,6 +32,7 @@
     "@types/jsonwebtoken": "^9.0.10",
     "@types/node": "^24.8.1",
     "@types/nodemailer": "^7.0.3",
+    "@types/pdfkit": "^0.17.3",
     "prisma": "^6.17.1",
     "ts-node": "^10.9.2",
     "tsup": "^8.5.0",

@@ -46,6 +46,7 @@ export const handleFindCandidateEvaluations = async (
           select: {
             id: true,
             participantRole: true,
+            completedAt: true,
             user: {
               select: {
                 id: true,
@@ -62,10 +63,15 @@ export const handleFindCandidateEvaluations = async (
 
     const totalPages = Math.max(1, Math.ceil(total / limit));
 
-    // Attach the current participant id for convenience on the frontend
+    // Attach the current participant id and completion status for convenience on the frontend
     const evaluationsWithParticipantId = evaluations.map((ev: any) => {
       const currentPart = (ev.participants || []).find((p: any) => p.user && p.user.id === userId);
-      return { ...ev, currentParticipantId: currentPart ? currentPart.id : null };
+      return { 
+        ...ev, 
+        currentParticipantId: currentPart ? currentPart.id : null,
+        isCompleted: currentPart ? !!currentPart.completedAt : false,
+        completedAt: currentPart ? currentPart.completedAt : null,
+      };
     });
 
     return reply.status(200).send({

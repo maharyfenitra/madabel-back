@@ -58,7 +58,22 @@ export const verifyJWT = async (
 
   try {
     const decoded = verifyAccessToken(token);
-    (request as any).user = decoded; // stock le payload
+    
+    // Récupérer le rôle de l'utilisateur depuis la base de données
+    const userData = await prisma.user.findFirst({
+      where: { id: decoded.userId, deletedAt: null },
+      select: { role: true },
+    });
+
+    if (!userData) {
+      throw reply.status(404).send({ error: "Utilisateur non trouvé" });
+    }
+
+    // Stocker userId et role dans request.user
+    (request as any).user = { 
+      userId: decoded.userId,
+      role: userData.role
+    };
     
   } catch (err) {
     throw reply.status(401).send({ err });

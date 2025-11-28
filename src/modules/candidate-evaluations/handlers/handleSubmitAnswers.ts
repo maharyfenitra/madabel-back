@@ -1,5 +1,11 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { prisma } from "../../../utils";
+import {
+  generateEvaluationPDF,
+  sendEmail,
+  formatAnswersForPDF,
+  prepareAnswerData,
+} from "../../service";
 
 /*
  Expected body shape:
@@ -31,12 +37,17 @@ export const handleSubmitAnswers = async (
       ? parseInt(body.evaluationId, 10)
       : null;
     const isDraft = body.isDraft === true; // Par défaut false si non spécifié
+    const isFinalSubmit = body.isFinalSubmit === true; // Nouvelle propriété pour soumission finale
+
+    if (!evaluationIdFromBody) {
+      return reply.status(400).send({ error: "evaluationId manquant dans le body" });
+    }
 
     // Verify participant exists and get evaluation info
     const participant = await prisma.evaluationParticipant.findFirst({
       where: {
         userId: user.userId,
-        evaluationId: params?.evaluationId,
+        evaluationId: evaluationIdFromBody,
         participantRole: "EVALUATOR",
       },
       include: { evaluation: true },
@@ -45,17 +56,13 @@ export const handleSubmitAnswers = async (
     if (!participant)
       return reply.status(404).send({ error: "Participant introuvable" });
 
-    // Validate that evaluationId from body matches the participant's evaluation
-    if (
-      evaluationIdFromBody &&
-      evaluationIdFromBody !== participant.evaluationId
-    ) {
-      return reply
-        .status(400)
-        .send({
-          error:
-            "evaluationId du body ne correspond pas à l'évaluation du participant",
-        });
+    // Vérifier si l'évaluation a déjà été complétée
+    // Bloquer uniquement si c'est une soumission finale et que l'évaluation est déjà complétée
+    if (participant.completedAt && isFinalSubmit) {
+      return reply.status(400).send({ 
+        error: "Évaluation déjà complétée", 
+        completedAt: participant.completedAt 
+      });
     }
 
     const evaluationId = participant.evaluationId;
@@ -63,7 +70,6 @@ export const handleSubmitAnswers = async (
 
     await prisma.$transaction(async (tx) => {
       for (const a of answers) {
-        // Check if answer already exists for this participant and question
         const existingAnswer = await tx.answer.findFirst({
           where: {
             evaluationParticipantId: participantId,
@@ -71,44 +77,28 @@ export const handleSubmitAnswers = async (
           },
         });
 
+        const answerData = prepareAnswerData(a, evaluationId, isDraft);
+
         let answer;
         if (existingAnswer) {
-          // Update existing answer
           answer = await tx.answer.update({
             where: { id: existingAnswer.id },
-            data: {
-              evaluationId: evaluationId,
-              selectedOptionId: a.selectedOptionId ?? null,
-              textAnswer: a.textAnswer ?? null,
-              numericAnswer:
-                typeof a.numericAnswer === "number" ? a.numericAnswer : null,
-              submittedAt: isDraft ? null : new Date(),
-              isDraft: isDraft,
-            },
+            data: answerData,
           });
 
-          // Delete existing answer options for multiple choice
           await tx.answerOption.deleteMany({
             where: { answerId: existingAnswer.id },
           });
         } else {
-          // Create new answer
           answer = await tx.answer.create({
             data: {
-              evaluationId: evaluationId,
+              ...answerData,
               evaluationParticipantId: participantId,
               questionId: a.questionId,
-              selectedOptionId: a.selectedOptionId ?? null,
-              textAnswer: a.textAnswer ?? null,
-              numericAnswer:
-                typeof a.numericAnswer === "number" ? a.numericAnswer : null,
-              submittedAt: isDraft ? null : new Date(),
-              isDraft: isDraft,
             },
           });
         }
 
-        // Handle multiple choice options
         if (
           Array.isArray(a.selectedOptionIds) &&
           a.selectedOptionIds.length > 0
@@ -123,11 +113,88 @@ export const handleSubmitAnswers = async (
         createdAnswers.push(answer);
       }
 
-      // Optionally mark evaluation as completed for this participant
-      // Here we just set evaluation.completedAt if all participants have answered; keeping simple for now
+      if (isFinalSubmit) {
+        await tx.evaluationParticipant.update({
+          where: { id: participantId },
+          data: { completedAt: new Date() },
+        });
+      }
     });
 
-    return reply.status(201).send({ ok: true, createdAnswers });
+    if (isFinalSubmit) {
+      try {
+        const participantWithData =
+          await prisma.evaluationParticipant.findUnique({
+            where: { id: participantId },
+            include: {
+              user: true,
+              evaluation: {
+                include: {
+                  participants: {
+                    where: { participantRole: "EVALUATOR" },
+                    include: { user: true },
+                  },
+                },
+              },
+            },
+          });
+
+        const allAnswers = await prisma.answer.findMany({
+          where: { evaluationParticipantId: participantId },
+          include: {
+            question: { include: { options: true } },
+            selectedOption: true,
+            selectedOptions: { include: { option: true } },
+          },
+          orderBy: { question: { order: "asc" } },
+        });
+
+        const formattedAnswers = formatAnswersForPDF(allAnswers as any);
+        const candidat = participantWithData?.evaluation?.participants?.[0];
+
+        const pdfBuffer = await generateEvaluationPDF({
+          evaluatorName: participantWithData?.user?.name || "Inconnu",
+          candidateName: candidat?.user?.name || "Inconnu",
+          evaluationRef: participantWithData?.evaluation?.ref || "",
+          completedAt: new Date(),
+          answers: formattedAnswers,
+        });
+
+        const toEmail = participantWithData?.user?.email;
+        if (toEmail) {
+          await sendEmail({
+            to: toEmail,
+            subject: `Évaluation complétée - ${participantWithData?.evaluation?.ref}`,
+            html: `
+              <p>Bonjour ${participantWithData?.user?.name},</p>
+              
+              <p>Merci d'avoir complété votre évaluation pour <strong>${candidat?.user?.name}</strong>.</p>
+              
+              <p>Vous trouverez en pièce jointe un récapitulatif de vos réponses au format PDF.</p>
+              
+              <p>Ce document est confidentiel et destiné à votre usage personnel uniquement.</p>
+              
+              <p>Cordialement,<br/>L'équipe MADABEL</p>
+            `,
+            attachments: [
+              {
+                filename: `evaluation_${participantWithData?.evaluation?.ref}_${new Date().getTime()}.pdf`,
+                content: pdfBuffer,
+                contentType: "application/pdf",
+              },
+            ],
+          });
+        }
+      } catch (emailError) {
+        console.error("Erreur lors de l'envoi de l'email:", emailError);
+      }
+    }
+
+    return reply.status(201).send({ 
+      ok: true, 
+      createdAnswers,
+      completedAt: isFinalSubmit ? new Date() : null
+    });
   } catch (error: any) {
     console.error("Erreur submit answers:", error);
     return reply
