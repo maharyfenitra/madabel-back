@@ -21,6 +21,7 @@ export const handleFindAllParticipants = async (
             mailSentAt: true,
             reminderSentAt: true,
             reminderCount: true,
+            completedAt: true,
             user: {
                 select: {
                     id: true,

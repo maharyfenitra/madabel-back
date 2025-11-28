@@ -15,19 +15,76 @@ export async function handleGetEvaluationReport(
       return reply.status(401).send({ error: "Utilisateur non authentifié" });
     }
 
-    // Vérifier que l'utilisateur est bien un participant CANDIDAT de cette évaluation
-    const evaluationParticipant = await prisma.evaluationParticipant.findFirst({
-      where: {
-        evaluationId: parseInt(evaluationId),
-        userId: user.userId,
-        participantRole: "CANDIDAT",
-      },
-    });
+    console.log("User accessing report:", { userId: user.userId, role: user.role, evaluationId });
 
-    if (!evaluationParticipant) {
-      return reply.status(403).send({
-        error: "Vous n'êtes pas autorisé à accéder à ce rapport",
+    // Vérifier que l'utilisateur a accès à ce rapport
+    // - ADMIN : accès à tous les rapports
+    // - CANDIDAT : accès aux rapports où il est le candidat évalué ET où au moins un évaluateur a complété
+    // - EVALUATOR : accès aux rapports des évaluations qu'il a complétées
+    
+    if (user.role !== "ADMIN") {
+      // Vérifier si l'utilisateur est participant
+      const userParticipants = await prisma.evaluationParticipant.findMany({
+        where: {
+          evaluationId: parseInt(evaluationId),
+          userId: user.userId,
+        },
       });
+
+      if (userParticipants.length === 0) {
+        return reply.status(403).send({
+          error: "Vous n'êtes pas autorisé à accéder à ce rapport",
+        });
+      }
+
+      // Vérifier les conditions selon le rôle de participation
+      let hasAccess = false;
+
+      for (const participant of userParticipants) {
+        // Si c'est un évaluateur ET qu'il a complété, il a accès
+        if (participant.participantRole === "EVALUATOR" && participant.completedAt) {
+          hasAccess = true;
+          break;
+        }
+
+        // Si c'est un candidat, vérifier qu'au moins un évaluateur a complété
+        if (participant.participantRole === "CANDIDAT") {
+          const completedEvaluators = await prisma.evaluationParticipant.count({
+            where: {
+              evaluationId: parseInt(evaluationId),
+              participantRole: "EVALUATOR",
+              completedAt: { not: null },
+            },
+          });
+
+          if (completedEvaluators > 0) {
+            hasAccess = true;
+            break;
+          }
+        }
+      }
+
+      if (!hasAccess) {
+        // Déterminer le message d'erreur approprié
+        const isEvaluator = userParticipants.some(p => p.participantRole === "EVALUATOR");
+        const isCandidat = userParticipants.some(p => p.participantRole === "CANDIDAT");
+
+        if (isEvaluator && userParticipants.every(p => !p.completedAt)) {
+          return reply.status(403).send({
+            error: "Vous devez compléter votre évaluation avant de voir le rapport",
+          });
+        }
+
+        if (isCandidat) {
+          return reply.status(403).send({
+            error: "Aucun évaluateur n'a encore complété cette évaluation",
+          });
+        }
+
+        return reply.status(403).send({
+          error: "Vous n'êtes pas autorisé à accéder à ce rapport",
+        });
+      }
     }
 
     // Récupérer l'évaluation avec le quiz et les questions
@@ -45,9 +102,15 @@ export async function handleGetEvaluationReport(
           },
         },
         participants: {
-          where: { participantRole: "EVALUATOR" },
           include: {
-            user: true,
+            user: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+              },
+            },
             answers: {
               include: {
                 question: true,
@@ -69,6 +132,11 @@ export async function handleGetEvaluationReport(
     // Grouper les réponses par question et catégorie
     const reportData: Record<string, any> = {};
 
+    // Filtrer uniquement les évaluateurs pour le calcul des moyennes
+    const evaluators = evaluation.participants.filter(
+      (p) => p.participantRole === "EVALUATOR"
+    );
+
     // Pour chaque question du quiz
     for (const question of evaluation.quiz.questions) {
       const category = question.category;
@@ -81,7 +149,7 @@ export async function handleGetEvaluationReport(
       }
 
       // Récupérer toutes les réponses des évaluateurs pour cette question
-      const answers = evaluation.participants
+      const answers = evaluators
         .map((participant) => {
           const answer = participant.answers.find(
             (a) => a.questionId === question.id
@@ -162,7 +230,7 @@ export async function handleGetEvaluationReport(
         questionType: question.type,
         overallAverage: overallAverage ? Number(overallAverage.toFixed(2)) : null,
         averagesByEvaluatorType,
-        totalEvaluators: evaluation.participants.length,
+        totalEvaluators: evaluators.length,
         answeredEvaluators: validAnswers.length,
       });
     }
@@ -173,6 +241,25 @@ export async function handleGetEvaluationReport(
     return reply.send({
       evaluationId: parseInt(evaluationId),
       evaluationRef: evaluation.ref,
+      evaluation: {
+        id: evaluation.id,
+        ref: evaluation.ref,
+        deadline: evaluation.deadline,
+        isCompleted: evaluation.isCompleted,
+        createdAt: evaluation.createdAt,
+        participants: evaluation.participants.map((p) => ({
+          id: p.id,
+          participantRole: p.participantRole,
+          completedAt: p.completedAt,
+          evaluatorType: p.evaluatorType,
+          user: {
+            id: p.user.id,
+            name: p.user.name,
+            email: p.user.email,
+            role: p.user.role,
+          },
+        })),
+      },
       report,
     });
   } catch (error) {

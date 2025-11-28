@@ -1,7 +1,10 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { prisma } from "../../../utils";
-import nodemailer from "nodemailer";
-import { generatePassword, hashPassword } from "../../auths/services";
+import {
+  sendEmail,
+  generateTemporaryPassword,
+  getLoginInstructions,
+} from "../../service";
 
 export const handleSendMailParticipant = async (req: FastifyRequest, reply: FastifyReply) => {
   try {
@@ -36,58 +39,18 @@ export const handleSendMailParticipant = async (req: FastifyRequest, reply: Fast
     const deadline = participant.evaluation?.deadline;
     const formattedDeadline = deadline ? new Date(deadline).toLocaleDateString('fr-FR') : "la date limite";
 
-    // lire la configuration SMTP depuis les variables d'environnement
-    const host = process.env.SMTP_HOST;
-    const port = Number(process.env.SMTP_PORT || 587);
-    const user = process.env.SMTP_USER;
-    const pass = process.env.SMTP_PASS;
-    const from = process.env.SMTP_FROM || user;
-
-    if (!host || !user || !pass) {
-        if (!host) console.error('SMTP_HOST non configuré.');
-        if (!user) console.error('SMTP_USER non configuré.');
-        if (!pass) console.error('SMTP_PASS non configuré.');   
-      console.error('SMTP non configuré. Variables d\'environnement manquantes.');
-      return reply.status(500).send({ error: 'SMTP non configuré sur le serveur' });
-    }
-
-    const transporter = nodemailer.createTransport({
-      host,
-      port,
-      secure: port === 465, // true for 465, false for other ports
-      auth: {
-        user,
-        pass,
-      },
-    });
-
     const subject = `Invitation à l'évaluation ${participant.evaluation?.ref ?? ''}`;
 
-    // Générer un mot de passe temporaire si c'est la première connexion
     let temporaryPassword = "";
-    const frontendUrl = process.env.FRONTEND_URL || "http://localhost:3000";
-    
     if (participant.user.isFirstLogin) {
-      // Générer un mot de passe aléatoire
-      temporaryPassword = generatePassword(12);
-      
-      // Hasher et mettre à jour le mot de passe de l'utilisateur
-      const hashedPassword = await hashPassword(temporaryPassword);
-      await prisma.user.update({
-        where: { id: participant.user.id },
-        data: { password: hashedPassword }
-      });
+      temporaryPassword = await generateTemporaryPassword(participant.user.id);
     }
 
-    const loginInstructions = participant.user.isFirstLogin 
-      ? `Pour vous connecter pour la première fois :
-- Connectez-vous sur : ${frontendUrl}/auth/login
-- Utilisez votre adresse email (${toEmail}) comme identifiant
-- Utilisez le mot de passe temporaire suivant : ${temporaryPassword}
-- Nous vous recommandons de changer ce mot de passe après votre première connexion`
-      : `Pour vous connecter :
-- Connectez-vous sur : ${frontendUrl}/auth/login
-- Utilisez votre adresse email (${toEmail}) et votre mot de passe habituel`;
+    const loginInstructions = getLoginInstructions(
+      toEmail,
+      participant.user.isFirstLogin,
+      temporaryPassword
+    );
 
     const text = `Cher ${participant.user.name},
 
@@ -97,7 +60,7 @@ L'évaluation est composée de 64 questions sur les compétences de leadership e
 
 Veuillez compléter l'évaluation au plus tard le ${formattedDeadline}. Nous vous recommandons de compléter l'évaluation dans un délai d'une semaine. Nous vous remercions d'avance pour vos réponses et commentaires que vous voudrez bien indiquer dans le questionnaire.
 
-${loginInstructions}
+${loginInstructions.text}
 
 Si vous avez des questions concernant ces instructions, veuillez contacter le SUPERADMIN MADABEL à l'adresse admin@madabel.com.
 
@@ -118,19 +81,7 @@ L'équipe Madabel`;
       
       <p>Veuillez compléter l'évaluation au plus tard le <strong>${formattedDeadline}</strong>. Nous vous recommandons de compléter l'évaluation dans un délai d'une semaine. Nous vous remercions d'avance pour vos réponses et commentaires que vous voudrez bien indiquer dans le questionnaire.</p>
       
-      ${participant.user.isFirstLogin 
-        ? `<p><strong>Pour vous connecter pour la première fois :</strong></p>
-      <ol>
-        <li>Connectez-vous sur : <a href="${frontendUrl}/auth/login" style="color: #007bff; text-decoration: none;">${frontendUrl}/auth/login</a></li>
-        <li>Utilisez votre adresse email (<strong>${toEmail}</strong>) comme identifiant</li>
-        <li>Utilisez le mot de passe temporaire suivant : <strong style="background-color: #f0f0f0; padding: 5px 10px; border-radius: 4px; font-family: monospace;">${temporaryPassword}</strong></li>
-        <li>Nous vous recommandons de changer ce mot de passe après votre première connexion</li>
-      </ol>`
-        : `<p><strong>Pour vous connecter :</strong></p>
-      <ul>
-        <li>Connectez-vous sur : <a href="${frontendUrl}/auth/login" style="color: #007bff; text-decoration: none;">${frontendUrl}/auth/login</a></li>
-        <li>Utilisez votre adresse email (<strong>${toEmail}</strong>) et votre mot de passe habituel</li>
-      </ul>`}
+      ${loginInstructions.html}
       
       <p>Si vous avez des questions concernant ces instructions, veuillez contacter le SUPERADMIN MADABEL à l'adresse <a href="mailto:admin@madabel.com">admin@madabel.com</a>.</p>
       
@@ -143,21 +94,23 @@ L'équipe Madabel`;
       <p>L'équipe Madabel</p>
     `;
 
-    const info = await transporter.sendMail({
-      from,
+    const success = await sendEmail({
       to: toEmail,
       subject,
       text,
       html,
     });
 
-    // Mettre à jour le timestamp d'envoi du mail
+    if (!success) {
+      return reply.status(500).send({ error: 'Erreur lors de l\'envoi du mail' });
+    }
+
     await prisma.evaluationParticipant.update({
       where: { id },
       data: { mailSentAt: new Date() }
     });
 
-    return reply.status(200).send({ ok: true, info });
+    return reply.status(200).send({ ok: true });
   } catch (error: any) {
     console.error('Erreur envoi mail:', error);
     return reply.status(500).send({ error: 'Erreur lors de l\'envoi du mail', details: error.message });
