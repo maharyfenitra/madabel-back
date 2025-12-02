@@ -34,6 +34,7 @@ export const handleFindEvaluations = async (
         participants: {
           select: {
             participantRole: true,
+            completedAt: true,
             user: {
               select: {
                 name: true,
@@ -47,10 +48,27 @@ export const handleFindEvaluations = async (
       },
     });
 
+    // Enrichir les données avec les informations de progression
+    const enrichedEvaluations = evaluations.map((evaluation) => {
+      const evaluators = evaluation.participants.filter(
+        (p) => p.participantRole === "EVALUATOR"
+      );
+      
+      const completedEvaluators = evaluators.filter(
+        (e) => e.completedAt !== null
+      ).length;
+
+      return {
+        ...evaluation,
+        evaluatorsCount: evaluators.length,
+        completedEvaluators,
+      };
+    });
+
     const totalPages = Math.max(1, Math.ceil(total / limit));
 
     return reply.status(200).send({
-      evaluations,
+      evaluations: enrichedEvaluations,
       meta: {
         total,
         page,
