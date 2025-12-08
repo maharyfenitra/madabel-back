@@ -45,6 +45,13 @@ export async function handleGetCandidateAnswers(
         },
       });
 
+      console.log("🔍 Debug handleGetCandidateAnswers:", {
+        evaluationId,
+        userId: user.userId,
+        userRole: user.role,
+        evaluationParticipant,
+      });
+
       if (!evaluationParticipant) {
         return reply.status(403).send({
           error: "Vous n'êtes pas autorisé à accéder à cette évaluation",

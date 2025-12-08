@@ -273,3 +273,33 @@ model AnswerOption {
 
   @@unique([answerId, optionId])
 }
+
+//
+// ⚙️ Configuration système pour les relances automatiques
+//
+model SystemConfig {
+  id                    Int      @id @default(autoincrement())
+  
+  // Fréquence de relance
+  reminderFrequency     ReminderFrequency @default(DAILY_1)
+  
+  // Activation/désactivation du système de relance
+  reminderEnabled       Boolean  @default(true)
+  
+  // Date de dernière vérification pour les relances
+  lastReminderCheck     DateTime?
+  
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  @@map("system_config")
+}
+
+/// Fréquences de relance disponibles
+enum ReminderFrequency {
+  HOURLY_1    // Toutes les heures
+  HOURLY_2    // Toutes les 2 heures
+  DAILY_1     // Tous les jours
+  DAILY_3     // Tous les 3 jours
+  WEEKLY_1    // Toutes les semaines
+}

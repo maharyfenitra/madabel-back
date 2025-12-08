@@ -39,19 +39,36 @@ export const handleSubmitAnswers = async (
     const isDraft = body.isDraft === true; // Par défaut false si non spécifié
     const isFinalSubmit = body.isFinalSubmit === true; // Nouvelle propriété pour soumission finale
 
+    console.log("🚀 handleSubmitAnswers - Début:", {
+      participantId,
+      evaluationIdFromBody,
+      userId: user.userId,
+      userRole: user.role,
+      isDraft,
+      isFinalSubmit,
+      answersCount: answers.length,
+    });
+
     if (!evaluationIdFromBody) {
       return reply.status(400).send({ error: "evaluationId manquant dans le body" });
     }
 
     // Verify participant exists and get evaluation info
+    // Accepter à la fois EVALUATOR et CANDIDAT pour permettre l'auto-évaluation
     const participant = await prisma.evaluationParticipant.findFirst({
       where: {
         userId: user.userId,
         evaluationId: evaluationIdFromBody,
-        participantRole: "EVALUATOR",
+        participantRole: { in: ["EVALUATOR", "CANDIDAT"] },
       },
       include: { evaluation: true },
     });
+
+    console.log("🔍 Participant trouvé:", participant ? {
+      id: participant.id,
+      role: participant.participantRole,
+      completedAt: participant.completedAt,
+    } : "null");
 
     if (!participant)
       return reply.status(404).send({ error: "Participant introuvable" });
