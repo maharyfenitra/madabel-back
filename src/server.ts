@@ -13,14 +13,19 @@ import { candidateEvaluationRoutes } from "./modules/candidate-evaluations/candi
 import { questionRoutes } from "./modules/questions/questionRoutes";
 import { reportRoutes } from "./modules/reports/reportRoutes";
 import { profileRoutes } from "./modules/profiles/profile";
+import { configRoutes } from "./modules/config/configRoutes";
+import { reminderService } from "./modules/config/reminderService";
 
 import fastifyStatic from "@fastify/static";
 import cors from "@fastify/cors";
 import path from "path";
 
 server.register(cors, {
-  origin: "*", // ou mettre l’URL de ton frontend, ex: "http://localhost:3000"
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  origin: true, // Accepte toutes les origines en dev, ou spécifier "http://localhost:3000" en prod
+  credentials: true, // Permet l'envoi de cookies et credentials
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"],
+  allowedHeaders: ["Content-Type", "Authorization"], // Autorise le header Authorization
+  exposedHeaders: ["Authorization"],
 });
 
 server.register(fastifyStatic, {
@@ -36,12 +41,16 @@ server.register(candidateEvaluationRoutes);
 server.register(questionRoutes);
 server.register(reportRoutes);
 server.register(profileRoutes);
+server.register(configRoutes);
 
 // Démarrage du serveur
 const start = async () => {
   try {
     await server.listen({ port: 8001, host: "0.0.0.0" });
     console.log("🚀 Serveur démarré sur http://localhost:8001");
+    
+    // Démarrer le service de relance automatique
+    await reminderService.start();
   } catch (err) {
     server.log.error(err);
     process.exit(1);

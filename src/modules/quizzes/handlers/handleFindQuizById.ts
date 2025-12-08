@@ -1,26 +1,36 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
-import { prisma } from "../../../utils";
+import { 
+  prisma, 
+  parseId, 
+  sendBadRequest, 
+  sendNotFound, 
+  sendInternalError 
+} from "../../../utils";
 
 export const handleFindQuizById = async (req: FastifyRequest, reply: FastifyReply) => {
   try {
     const params = req.params as any;
-    const id = parseInt(params.id, 10);
-    if (Number.isNaN(id)) return reply.status(400).send({ error: 'ID invalide' });
+    const quizId = parseId(params.id);
+    
+    if (!quizId) {
+      return sendBadRequest(reply, 'ID de quiz invalide');
+    }
 
-    const quiz = await prisma.quiz.findUnique({
+    const quiz = await prisma.quiz.findFirst({
       where: { 
-        id,
-        deletedAt: null // Exclure les quizzes supprimés (soft delete)
+        id: quizId,
+        deletedAt: null // Exclude soft-deleted quizzes
       },
       include: { questions: { include: { options: true } } }
     });
 
-    if (!quiz) return reply.status(404).send({ error: 'Quiz non trouvé' });
+    if (!quiz) {
+      return sendNotFound(reply, 'Quiz non trouvé');
+    }
 
     return reply.status(200).send({ quiz });
   } catch (error: any) {
-    console.error("❌ Erreur findQuizById:", error);
-    return reply.status(500).send({ error: 'Erreur interne', details: error.message });
+    return sendInternalError(reply, 'Erreur lors de la récupération du quiz', error);
   }
 };
 

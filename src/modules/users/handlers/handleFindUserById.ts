@@ -1,5 +1,11 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
-import { prisma } from "../../../utils";
+import { 
+  prisma, 
+  parseId, 
+  sendBadRequest, 
+  sendNotFound, 
+  sendInternalError 
+} from "../../../utils";
 
 export const handleFindUserById = async (
   request: FastifyRequest<{ Params: { id: string } }>,
@@ -8,11 +14,13 @@ export const handleFindUserById = async (
   try {
     const { id } = request.params;
 
-    const userId = parseInt(String(id), 10);
-    if (isNaN(userId) || userId <= 0) {
-      return reply.status(400).send({ error: "Invalid user id" });
+    // Validate and parse ID
+    const userId = parseId(id);
+    if (!userId) {
+      return sendBadRequest(reply, "ID utilisateur invalide");
     }
 
+    // Fetch user (exclude soft-deleted)
     const user = await prisma.user.findFirst({
       where: { id: userId, deletedAt: null },
       select: {
@@ -28,16 +36,12 @@ export const handleFindUserById = async (
     });
 
     if (!user) {
-      return reply.status(404).send({ error: "Utilisateur non trouvé" });
+      return sendNotFound(reply, "Utilisateur non trouvé");
     }
 
     return reply.status(200).send({ user });
   } catch (error: any) {
-    console.error("❌ Erreur lors de la récupération de l'utilisateur:", error);
-    return reply.status(500).send({
-      error: "Erreur interne du serveur",
-      ...(process.env.NODE_ENV === 'development' && { details: error.message }),
-    });
+    return sendInternalError(reply, "Erreur lors de la récupération de l'utilisateur", error);
   }
 };
 
