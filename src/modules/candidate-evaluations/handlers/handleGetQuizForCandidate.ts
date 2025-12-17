@@ -28,7 +28,10 @@ export const handleGetQuizForCandidate = async (req: FastifyRequest, reply: Fast
           include: { options: true },
           skip: offset,
           take: limit,
-          orderBy: { id: 'asc' } // Trier par ID pour cohérence
+          orderBy: [
+            { order: 'asc' },
+            { id: 'asc' }
+          ]
         },
         _count: {
           select: { questions: true }
