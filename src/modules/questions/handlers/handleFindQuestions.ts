@@ -7,7 +7,14 @@ export const handleFindQuestions = async (req: FastifyRequest, reply: FastifyRep
     const quizId = parseInt(params.quizId, 10);
     if (Number.isNaN(quizId)) return reply.status(400).send({ error: 'quizId invalide' });
 
-    const questions = await prisma.question.findMany({ where: { quizId }, include: { options: true }, orderBy: { order: 'asc' } });
+    const questions = await prisma.question.findMany({ 
+      where: { quizId }, 
+      include: { options: true }, 
+      orderBy: [
+        { order: 'asc' },
+        { id: 'asc' }
+      ]
+    });
 
     return reply.status(200).send({ questions });
   } catch (error: any) {
