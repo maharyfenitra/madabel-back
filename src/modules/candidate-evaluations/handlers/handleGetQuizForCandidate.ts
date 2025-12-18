@@ -6,6 +6,8 @@ export const handleGetQuizForCandidate = async (req: FastifyRequest, reply: Fast
     const params = req.params as any;
     const query = req.query as any;
     const quizId = parseInt(params.quizId, 10);
+    const participantIdRaw = parseInt(query.participantId, 10);
+    const participantId = !isNaN(participantIdRaw) && participantIdRaw > 0 ? participantIdRaw : null;
     if (Number.isNaN(quizId)) return reply.status(400).send({ error: 'quizId invalide' });
 
     // Paramètres de pagination
@@ -41,6 +43,36 @@ export const handleGetQuizForCandidate = async (req: FastifyRequest, reply: Fast
 
     if (!quiz) return reply.status(404).send({ error: 'Quiz non trouvé' });
 
+    // Récupérer le nom du candidat si participantId est fourni
+    let candidateName = null;
+    if (participantId) {
+      const participant = await prisma.evaluationParticipant.findFirst({
+        where: { id: participantId },
+        include: {
+          evaluation: {
+            include: {
+              participants: {
+                where: { participantRole: 'CANDIDAT' },
+                include: {
+                  user: {
+                    select: {
+                      name: true,
+                      email: true
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      });
+
+      if (participant?.evaluation?.participants?.[0]?.user) {
+        const user = participant.evaluation.participants[0].user;
+        candidateName = user.name || user.email;
+      }
+    }
+
     // Calculer les informations de pagination
     const totalQuestions = quiz._count.questions;
     const totalPages = Math.ceil(totalQuestions / limit);
@@ -52,6 +84,7 @@ export const handleGetQuizForCandidate = async (req: FastifyRequest, reply: Fast
       quiz: {
         ...quiz,
         questions: quiz.questions,
+        candidateName,
         pagination: {
           currentPage: page,
           totalPages,
