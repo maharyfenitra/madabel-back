@@ -8,117 +8,165 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-//
-// 🧍 Utilisateur principal
-//
 model User {
-  id            Int                      @id @default(autoincrement())
-  name          String
-  email         String?                  @unique
-  phone         String                   @unique
-  post          String?
-  // Soft delete timestamp: when set, user is considered deleted
-  deletedAt     DateTime?
-  password      String
-  role          Role                     @default(CANDIDAT)
-  avatar        String?
-  isFirstLogin  Boolean                  @default(true)
-  createdAt     DateTime                 @default(now())
-
-  // 🔐 Auth
-  refreshTokens RefreshToken[]
+  id                  Int                     @id @default(autoincrement())
+  name                String
+  email               String?                 @unique
+  phone               String                  @unique
+  password            String
+  role                Role                    @default(CANDIDAT)
+  avatar              String?
+  createdAt           DateTime                @default(now())
+  post                String?
+  deletedAt           DateTime?
+  isFirstLogin        Boolean                 @default(true)
+  evaluations         EvaluationParticipant[]
   passwordResetTokens PasswordResetToken[]
-
-  // 🧾 Relations avec les évaluations (via la table de jonction)
-  evaluations   EvaluationParticipant[]
+  refreshTokens       RefreshToken[]
 }
 
-//
-// 🔐 Token d'authentification
-//
 model RefreshToken {
   id        Int      @id @default(autoincrement())
   token     String   @unique
-  user      User     @relation(fields: [userId], references: [id])
   userId    Int
   expiresAt DateTime
   createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
 }
 
-//
-// 🔑 Token de réinitialisation de mot de passe
-//
 model PasswordResetToken {
   id        Int      @id @default(autoincrement())
   token     String   @unique
-  user      User     @relation(fields: [userId], references: [id])
   userId    Int
   expiresAt DateTime
   used      Boolean  @default(false)
   createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
 }
 
-//
-// 📊 Table principale : Évaluation
-//
 model Evaluation {
-  id           Int                       @id @default(autoincrement())
-  ref          String                    @unique
-  createdAt    DateTime                  @default(now())
+  id           Int                     @id @default(autoincrement())
+  ref          String                  @unique
+  createdAt    DateTime                @default(now())
   deadline     DateTime
   completedAt  DateTime?
-  isCompleted  Boolean                   @default(false)
+  isCompleted  Boolean                 @default(false)
   role         String?
-  
-  // Optional relation to a Quiz template
-  quiz        Quiz?     @relation(fields: [quizId], references: [id])
-  quizId      Int?
-  
-  // 🔗 Relation avec les participants (candidats et évaluateurs)
-  participants EvaluationParticipant[]
-
-  // Réponses données dans cette évaluation
+  updatedAt    DateTime                @updatedAt
+  quizId       Int?
   answers      Answer[]
-
-  // timestamps
-  updatedAt    DateTime                  @updatedAt
+  quiz         Quiz?                   @relation(fields: [quizId], references: [id])
+  participants EvaluationParticipant[]
 }
 
-//
-// 👥 Table d'association : relie les utilisateurs à une évaluation
-//
 model EvaluationParticipant {
-  id             Int          @id @default(autoincrement())
-  evaluation     Evaluation   @relation(fields: [evaluationId], references: [id])
-  evaluationId   Int
-  user           User         @relation(fields: [userId], references: [id])
-  userId         Int
-
-  // ✅ Permet de différencier si la personne est "CANDIDAT" ou "EVALUATOR"
+  id              Int            @id @default(autoincrement())
+  evaluationId    Int
+  userId          Int
   participantRole Role
-
+  createdAt       DateTime       @default(now())
   evaluatorType   EvaluatorType?
-
-  // Date d'envoi du mail d'invitation
   mailSentAt      DateTime?
-  // Date d'envoi de la relance
   reminderSentAt  DateTime?
-  // Nombre de relances envoyées
-  reminderCount   Int          @default(0)
-  // Date de complétion de l'évaluation par ce participant
+  reminderCount   Int            @default(0)
   completedAt     DateTime?
-
-  createdAt      DateTime     @default(now())
-
-  // Réponses données par ce participant
   answers         Answer[]
+  evaluation      Evaluation     @relation(fields: [evaluationId], references: [id])
+  user            User           @relation(fields: [userId], references: [id])
 
-  @@unique([evaluationId, userId]) // empêche les doublons
+  @@unique([evaluationId, userId])
 }
 
-//
-// 📜 Énumérations
-//
+/// Un questionnaire (template) contenant plusieurs questions
+model Quiz {
+  id          Int          @id @default(autoincrement())
+  title       String
+  description String?
+  isActive    Boolean      @default(true)
+  createdAt   DateTime     @default(now())
+  updatedAt   DateTime     @updatedAt
+  deletedAt   DateTime?
+  evaluations Evaluation[]
+  questions   Question[]
+}
+
+/// Question du quiz (texte, type, ordre, poids, langue...)
+model Question {
+  id              Int              @id @default(autoincrement())
+  quizId          Int
+  text            String
+  type            QuestionType     @default(SINGLE_CHOICE)
+  order           Int              @default(0)
+  weight          Float?
+  language        String?          @default("fr")
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  correctNumeric  Float?
+  correctOptionId Int?
+  correctText     String?
+  category        QuestionCategory @default(PRODUCTION)
+  subcategory     PinnacleSubcategory?
+  developOthers   Boolean          @default(false)
+  answers         Answer[]
+  options         Option[]
+  correctOption   Option?          @relation("CorrectOption", fields: [correctOptionId], references: [id])
+  quiz            Quiz             @relation(fields: [quizId], references: [id])
+}
+
+/// Option (choix) pour une question
+model Option {
+  id                  Int            @id @default(autoincrement())
+  questionId          Int
+  text                String
+  value               Int?
+  isKey               Boolean?       @default(false)
+  createdAt           DateTime       @default(now())
+  selectedByAnswers   Answer[]
+  answerSelections    AnswerOption[]
+  question            Question       @relation(fields: [questionId], references: [id])
+  correctForQuestions Question[]     @relation("CorrectOption")
+}
+
+model Answer {
+  id                      Int                    @id @default(autoincrement())
+  evaluationParticipantId Int?
+  questionId              Int
+  selectedOptionId        Int?
+  textAnswer              String?
+  numericAnswer           Float?
+  createdAt               DateTime               @default(now())
+  evaluationId            Int?
+  isDraft                 Boolean                @default(false)
+  submittedAt             DateTime?
+  updatedAt               DateTime               @default(now()) @updatedAt
+  evaluation              Evaluation?            @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
+  evaluationParticipant   EvaluationParticipant? @relation(fields: [evaluationParticipantId], references: [id], onDelete: Cascade)
+  question                Question               @relation(fields: [questionId], references: [id], onDelete: Cascade)
+  selectedOption          Option?                @relation(fields: [selectedOptionId], references: [id], onDelete: Cascade)
+  selectedOptions         AnswerOption[]
+}
+
+model AnswerOption {
+  id       Int    @id @default(autoincrement())
+  answerId Int
+  optionId Int
+  answer   Answer @relation(fields: [answerId], references: [id], onDelete: Cascade)
+  option   Option @relation(fields: [optionId], references: [id], onDelete: Cascade)
+
+  @@unique([answerId, optionId])
+}
+
+model SystemConfig {
+  id                Int               @id @default(autoincrement())
+  reminderFrequency ReminderFrequency @default(DAILY_1)
+  reminderEnabled   Boolean           @default(true)
+  lastReminderCheck DateTime?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@map("system_config")
+}
+
 enum Role {
   ADMIN
   EVALUATOR
@@ -126,89 +174,10 @@ enum Role {
 }
 
 enum EvaluatorType {
-  DIRECT_MANAGER         // Manager Direct
-  DIRECT_COLLEAGUE       // Collaborateur Direct
-  PEER                   // Pair/Associé
-  OTHER                  // Autres (client/fournisseur/famille/amis/etc.)
-}
-
-// --------------------------------------------------
-// Modèles pour stocker les questionnaires et questions
-// --------------------------------------------------
-
-/// Un questionnaire (template) contenant plusieurs questions
-model Quiz {
-  id          Int        @id @default(autoincrement())
-  title       String
-  description String?
-  isActive    Boolean    @default(true)
-  // Soft delete timestamp: when set, quiz is considered deleted
-  deletedAt   DateTime?
-
-  // Questions appartenant à ce quiz
-  questions   Question[]
-  
-  // Evaluations created from this quiz template
-  evaluations Evaluation[]
-
-  createdAt   DateTime   @default(now())
-  updatedAt   DateTime   @updatedAt
-}
-
-/// Question du quiz (texte, type, ordre, poids, langue...)
-model Question {
-  id        Int          @id @default(autoincrement())
-  quiz      Quiz         @relation(fields: [quizId], references: [id])
-  quizId    Int
-
-  text      String
-  type      QuestionType @default(SINGLE_CHOICE)
-  category  QuestionCategory @default(SUMMIT)
-  order     Int          @default(0)
-  weight    Float?
-  language  String?      @default("fr")
-
-  // Réponse correcte (utile pour correction automatique)
-  // Pour les questions à choix, on peut marquer l'option correcte via Option.isKey
-  // ou référencer directement une option ici pour les SINGLE_CHOICE
-  correctOptionId Int?
-  correctOption   Option? @relation("CorrectOption", fields: [correctOptionId], references: [id])
-
-  // Pour les questions texte/scale, on peut stocker la réponse correcte ici
-  correctText     String?
-  correctNumeric  Float?
-
-  // Options / choix liés à la question (pour choice questions)
-  options   Option[]
-
-  // Réponses associées à cette question
-  answers   Answer[]
-
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
-}
-
-/// Option (choix) pour une question
-model Option {
-  id         Int      @id @default(autoincrement())
-  question   Question @relation(fields: [questionId], references: [id])
-  questionId Int
-
-  text       String
-  // Valeur numérique associée au choix (utile pour scoring, échelles...)
-  value      Int?
-  // Indique si c'est la réponse clef (optionnel, utile pour quizzes à correction automatique)
-  isKey      Boolean? @default(false)
-
-  createdAt  DateTime @default(now())
-
-  // Pour savoir quelles réponses ont sélectionné cette option
-  selectedByAnswers Answer[]
-  // Liens vers AnswerOption (multi-select)
-  answerSelections  AnswerOption[]
-
-  // Si cette option est référencée comme réponse correcte par une question
-  correctForQuestions Question[] @relation("CorrectOption")
+  DIRECT_MANAGER
+  DIRECT_COLLEAGUE
+  PEER
+  OTHER
 }
 
 /// Types de question supportés
@@ -224,82 +193,20 @@ enum QuestionCategory {
   POSITION
   PERMISSION
   PRODUCTION
-  DEVELOPMENT_OF_OTHERS
-  SUMMIT
+  PINNACLE
 }
 
-// Stocke les réponses des participants (réponse unique / texte / valeur numérique)
-model Answer {
-  id                       Int                      @id @default(autoincrement())
-
-  // 🔗 Liens vers l'évaluation et le participant
-  evaluation               Evaluation?              @relation(fields: [evaluationId], references: [id], onDelete: Cascade)
-  evaluationId             Int?
-  evaluationParticipant    EvaluationParticipant?   @relation(fields: [evaluationParticipantId], references: [id], onDelete: Cascade)
-  evaluationParticipantId  Int?
-
-  // Question répondue
-  question                 Question                 @relation(fields: [questionId], references: [id], onDelete: Cascade)
-  questionId               Int
-
-  // Réponse choisie (pour SINGLE_CHOICE)
-  selectedOption           Option?                  @relation(fields: [selectedOptionId], references: [id], onDelete: Cascade)
-  selectedOptionId         Int?
-
-  // Réponse libre (TEXT)
-  textAnswer               String?
-
-  // Réponse numérique (SCALE)
-  numericAnswer            Float?
-
-  // Pour MULTIPLE_CHOICE : relation vers la table de jonction AnswerOption
-  selectedOptions          AnswerOption[]
-
-  // Métadonnées supplémentaires
-  submittedAt              DateTime?                // Date de soumission de la réponse
-  isDraft                  Boolean                  @default(false) // Permet de sauvegarder des brouillons
-
-  createdAt                DateTime                 @default(now())
-  updatedAt                DateTime                 @default(now()) @updatedAt
-}
-
-// Table de jonction pour stocker plusieurs options sélectionnées par réponse
-model AnswerOption {
-  id        Int    @id @default(autoincrement())
-  answer    Answer @relation(fields: [answerId], references: [id], onDelete: Cascade)
-  answerId  Int
-  option    Option @relation(fields: [optionId], references: [id], onDelete: Cascade)
-  optionId  Int
-
-  @@unique([answerId, optionId])
-}
-
-//
-// ⚙️ Configuration système pour les relances automatiques
-//
-model SystemConfig {
-  id                    Int      @id @default(autoincrement())
-  
-  // Fréquence de relance
-  reminderFrequency     ReminderFrequency @default(DAILY_1)
-  
-  // Activation/désactivation du système de relance
-  reminderEnabled       Boolean  @default(true)
-  
-  // Date de dernière vérification pour les relances
-  lastReminderCheck     DateTime?
-  
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
-  
-  @@map("system_config")
+/// Sous-catégories pour PINNACLE
+enum PinnacleSubcategory {
+  SOI
+  AUTRES
 }
 
 /// Fréquences de relance disponibles
 enum ReminderFrequency {
-  HOURLY_1    // Toutes les heures
-  HOURLY_2    // Toutes les 2 heures
-  DAILY_1     // Tous les jours
-  DAILY_3     // Tous les 3 jours
-  WEEKLY_1    // Toutes les semaines
+  HOURLY_1
+  HOURLY_2
+  DAILY_1
+  DAILY_3
+  WEEKLY_1
 }

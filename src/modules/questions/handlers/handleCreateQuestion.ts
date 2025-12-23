@@ -14,11 +14,17 @@ export const handleCreateQuestion = async (req: FastifyRequest, reply: FastifyRe
       quizId,
       text: String(body.text),
       type: body.type || 'SINGLE_CHOICE',
-      category: body.category || 'SUMMIT',
+      category: body.category || 'PRODUCTION',
+      developOthers: typeof body.developOthers === 'boolean' ? body.developOthers : false,
       order: typeof body.order === 'number' ? body.order : 0,
       weight: typeof body.weight === 'number' ? body.weight : undefined,
       language: body.language || 'fr',
     };
+
+    // Ajouter subcategory seulement si category est PINNACLE
+    if (body.category === 'PINNACLE' && body.subcategory) {
+      data.subcategory = body.subcategory;
+    }
 
     if (Array.isArray(body.options) && body.options.length > 0) {
       data.options = { create: body.options.map((o: any) => ({ text: String(o.text), value: typeof o.value === 'number' ? o.value : undefined, isKey: typeof o.isKey === 'boolean' ? o.isKey : undefined })) };
