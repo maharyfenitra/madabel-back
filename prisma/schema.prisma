@@ -194,6 +194,7 @@ enum QuestionCategory {
   PERMISSION
   PRODUCTION
   PINNACLE
+  AUTRE
 }
 
 /// Sous-catégories pour PINNACLE
