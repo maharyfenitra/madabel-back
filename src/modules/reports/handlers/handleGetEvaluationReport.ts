@@ -172,8 +172,36 @@ export async function handleGetEvaluationReport(
         if (question.type === "SINGLE_CHOICE" && a!.answer.selectedOption) {
           return true;
         }
+        if (question.type === "TEXT" && a!.answer.textAnswer) {
+          return true;
+        }
         return false;
       });
+
+      // Pour les questions TEXT, collecter toutes les réponses textuelles
+      if (question.type === "TEXT") {
+        const textAnswers = answers
+          .map((a) => ({
+            evaluatorType: a?.evaluatorType || "OTHER",
+            participantId: a?.participantId,
+            text: a?.answer?.textAnswer || null,
+          }))
+          .filter((a) => a.text);
+
+        reportData[category].questions.push({
+          questionId: question.id,
+          questionText: question.text,
+          questionType: question.type,
+          subcategory: question.subcategory || null,
+          developOthers: question.developOthers || false,
+          overallAverage: null,
+          averagesByEvaluatorType: {},
+          totalEvaluators: evaluators.length,
+          answeredEvaluators: textAnswers.length,
+          textAnswers: textAnswers, // Ajouter les réponses textuelles
+        });
+        continue;
+      }
 
       if (validAnswers.length === 0) {
         reportData[category].questions.push({
