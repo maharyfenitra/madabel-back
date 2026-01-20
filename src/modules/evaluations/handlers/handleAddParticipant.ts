@@ -1,6 +1,7 @@
 import type { FastifyReply, FastifyRequest } from "fastify";
 import { prisma } from "../../../utils";
 import { hashPassword, generatePassword } from "../../auths/services";
+import { reminderService } from "../../config/reminderService";
 
 export const handleAddParticipant = async (
   request: FastifyRequest,
@@ -74,6 +75,20 @@ export const handleAddParticipant = async (
             }
         }
      })
+
+    // Envoyer immédiatement un email de notification si c'est un évaluateur
+    if (role === "EVALUATOR") {
+      console.log(`🔔 Tentative d'envoi immédiat d'email pour le participant ${participant.id} (${email})`);
+      try {
+        await reminderService.sendImmediateNotification(participant.id);
+        console.log(`✅ Email immédiat traité pour le participant ${participant.id}`);
+      } catch (error) {
+        console.error("❌ Erreur lors de l'envoi de l'email immédiat:", error);
+        // On continue même si l'email échoue
+      }
+    } else {
+      console.log(`⏭️  Pas d'email à envoyer - rôle: ${role}`);
+    }
 
     return reply.status(200).send({ user, participant});
   } catch (error) {

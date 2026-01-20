@@ -137,6 +137,11 @@ export async function handleGetEvaluationReport(
       (p) => p.participantRole === "EVALUATOR"
     );
 
+    // Récupérer le candidat (pour ses réponses individuelles)
+    const candidat = evaluation.participants.find(
+      (p) => p.participantRole === "CANDIDAT"
+    );
+
     // Pour chaque question du quiz
     for (const question of evaluation.quiz.questions) {
       const category = question.category;
@@ -249,9 +254,45 @@ export async function handleGetEvaluationReport(
 
       const overallAverage = overallCount > 0 ? overallSum / overallCount : null;
 
-      const averagesByEvaluatorType: Record<string, number> = {};
-      for (const [type, data] of Object.entries(averagesByType)) {
-        averagesByEvaluatorType[type] = data.count > 0 ? data.sum / data.count : 0;
+      // Mapper les EvaluatorType de la DB vers les clés utilisées dans le frontend
+      const evaluatorTypeMap: Record<string, string> = {
+        'DIRECT_MANAGER': 'MANAGER_DIRECT',
+        'DIRECT_COLLEAGUE': 'COLLABORATEUR_DIRECT',
+        'PEER': 'COLLEGUE',
+        'OTHER': 'RH',
+        'CANDIDAT': 'CANDIDAT',
+      };
+
+      // Initialiser averagesByEvaluatorType avec tous les types à 0
+      const averagesByEvaluatorType: Record<string, number> = {
+        COLLABORATEUR_DIRECT: 0,
+        MANAGER_DIRECT: 0,
+        COLLEGUE: 0,
+        RH: 0,
+        CANDIDAT: 0,
+      };
+      
+      // Calculer les moyennes pour les types qui ont des données
+      for (const [dbType, data] of Object.entries(averagesByType)) {
+        if (data.count > 0) {
+          const frontendType = evaluatorTypeMap[dbType] || dbType;
+          averagesByEvaluatorType[frontendType] = data.sum / data.count;
+        }
+      }
+
+      // Récupérer la réponse individuelle du candidat pour cette question
+      let candidatAnswer: number | null = null;
+      if (candidat) {
+        const candidatAnswerData = candidat.answers.find(
+          (a) => a.questionId === question.id
+        );
+        if (candidatAnswerData) {
+          if (question.type === "SCALE") {
+            candidatAnswer = candidatAnswerData.numericAnswer;
+          } else if (question.type === "SINGLE_CHOICE" && candidatAnswerData.selectedOption) {
+            candidatAnswer = candidatAnswerData.selectedOption.value || 0;
+          }
+        }
       }
 
       reportData[category].questions.push({
@@ -262,6 +303,7 @@ export async function handleGetEvaluationReport(
         developOthers: question.developOthers || false,
         overallAverage: overallAverage ? Number(overallAverage.toFixed(2)) : null,
         averagesByEvaluatorType,
+        candidatAnswer: candidatAnswer !== null ? Number(candidatAnswer.toFixed(2)) : null,
         totalEvaluators: evaluators.length,
         answeredEvaluators: validAnswers.length,
       });

@@ -92,10 +92,16 @@ export class ReminderService {
 
       console.log(`📧 ${incompleteParticipants.length} participant(s) à relancer au démarrage`);
 
-      // Envoyer les emails de relance
+      // Envoyer les emails de relance seulement à ceux qui ont déjà reçu au moins un mail
       let sentCount = 0;
       for (const participant of incompleteParticipants) {
         try {
+          // Sauter les participants qui n'ont jamais reçu de mail (ils recevront le mail immédiat)
+          if (!participant.mailSentAt) {
+            console.log(`⏭️  Participant ${participant.user.email} n'a jamais reçu de mail, sera géré par l'envoi immédiat`);
+            continue;
+          }
+
           console.log(`🔍 Vérification participant: ${participant.user.name} (${participant.user.email})`);
           
           const candidat = participant.evaluation.participants.find(
@@ -269,10 +275,16 @@ L'équipe Madabel`;
 
       console.log(`📧 ${incompleteParticipants.length} participant(s) à relancer`);
 
-      // Envoyer les emails de relance
+      // Envoyer les emails de relance seulement à ceux qui ont déjà reçu au moins un mail
       let sentCount = 0;
       for (const participant of incompleteParticipants) {
         try {
+          // Sauter les participants qui n'ont jamais reçu de mail (ils recevront le mail immédiat)
+          if (!participant.mailSentAt) {
+            console.log(`⏭️  Participant ${participant.user.email} n'a jamais reçu de mail, sera géré par l'envoi immédiat`);
+            continue;
+          }
+
           const candidat = participant.evaluation.participants.find(
             (p: any) => p.participantRole === "CANDIDAT"
           );
@@ -399,6 +411,165 @@ L'équipe Madabel`;
   async forceSendReminders() {
     console.log("🔄 Envoi forcé des relances...");
     await this.checkAndSendReminders();
+  }
+
+  /**
+   * Envoie immédiatement une notification à un participant qui n'a jamais reçu de mail
+   * @param participantId - L'ID du participant
+   */
+  async sendImmediateNotification(participantId: number) {
+    try {
+      console.log(`📨 Envoi immédiat de notification pour le participant ${participantId}...`);
+
+      // Récupérer le participant avec ses informations complètes
+      const participant = await prisma.evaluationParticipant.findUnique({
+        where: {
+          id: participantId,
+        },
+        include: {
+          user: true,
+          evaluation: {
+            include: {
+              participants: {
+                where: {
+                  participantRole: "CANDIDAT",
+                },
+                include: {
+                  user: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      if (!participant) {
+        console.log(`⚠️  Participant ${participantId} introuvable`);
+        return;
+      }
+
+      // Ne pas envoyer si le participant a déjà reçu un mail
+      if (participant.mailSentAt) {
+        console.log(`⚠️  Le participant ${participant.user.email} a déjà reçu un mail`);
+        return;
+      }
+
+      // Ne pas envoyer si le participant n'est pas un évaluateur
+      if (participant.participantRole !== "EVALUATOR") {
+        console.log(`⚠️  Le participant ${participant.user.email} n'est pas un évaluateur`);
+        return;
+      }
+
+      // Ne pas envoyer si l'évaluation est complétée
+      if (participant.evaluation.isCompleted) {
+        console.log(`⚠️  L'évaluation ${participant.evaluation.ref} est déjà complétée`);
+        return;
+      }
+
+      // Ne pas envoyer si la deadline est dépassée
+      const now = new Date();
+      if (participant.evaluation.deadline < now) {
+        console.log(`⚠️  La deadline de l'évaluation ${participant.evaluation.ref} est dépassée`);
+        return;
+      }
+
+      const candidat = participant.evaluation.participants.find(
+        (p: any) => p.participantRole === "CANDIDAT"
+      );
+
+      if (!candidat) {
+        console.log(`⚠️  Aucun candidat trouvé pour le participant ${participant.user.name}`);
+        return;
+      }
+
+      if (!participant.user.email) {
+        console.log(`⚠️  Aucun email pour le participant ${participant.user.name}`);
+        return;
+      }
+
+      console.log(`📤 Préparation de l'envoi immédiat pour ${participant.user.email}...`);
+
+      // Préparer les informations pour le mail d'invitation
+      const candidatName = candidat.user.name || "la personne concernée";
+      const deadline = participant.evaluation.deadline;
+      const formattedDeadline = deadline ? new Date(deadline).toLocaleDateString('fr-FR') : "la date limite";
+      const subject = `Invitation à l'évaluation ${participant.evaluation.ref}`;
+
+      // Générer mot de passe temporaire si première connexion
+      let temporaryPassword = "";
+      if (participant.user.isFirstLogin) {
+        temporaryPassword = await generateTemporaryPassword(participant.user.id);
+      }
+
+      const loginInstructions = getLoginInstructions(
+        participant.user.email,
+        participant.user.isFirstLogin,
+        temporaryPassword
+      );
+
+      const text = `Cher ${participant.user.name},
+
+${candidatName} vous a demandé de bien vouloir l'évaluer dans le cadre de l'évaluation du leadership de MADABEL.
+
+L'évaluation est composée de 64 questions sur les compétences de leadership et prendra environ 10 minutes à compléter. Ce courriel contient des instructions pour évaluer ce leader ou, si vous l'avez déjà vu, nous vous rappelons de l'évaluer dès que possible.
+
+Veuillez compléter l'évaluation au plus tard le ${formattedDeadline}. Nous vous recommandons de compléter l'évaluation dans un délai d'une semaine. Nous vous remercions d'avance pour vos réponses et commentaires que vous voudrez bien indiquer dans le questionnaire.
+
+${loginInstructions.text}
+
+Si vous avez des questions concernant ces instructions, veuillez contacter le SUPERADMIN MADABEL à l'adresse admin@madabel.com.
+
+Les réponses des évaluateurs sont collectées de manière anonyme et compilées en groupes d'évaluateurs pour les besoins du rapport. Les réponses des managers sont rapportées individuellement et peuvent ne pas être anonymes.
+
+Vous aurez également la possibilité d'entrer des commentaires libres si vous le souhaitez.
+
+N'OUBLIEZ PAS de cliquer sur SOUMETTRE L'ENQUÊTE en bas de la page des commentaires, même si vous ne souhaitez pas inclure de commentaires libres.
+
+L'équipe Madabel`;
+
+      const html = `
+      <p>Cher ${participant.user.name},</p>
+      
+      <p>${candidatName} vous a demandé de bien vouloir l'évaluer dans le cadre de l'évaluation du leadership de MADABEL.</p>
+      
+      <p>L'évaluation est composée de 64 questions sur les compétences de leadership et prendra environ 10 minutes à compléter. Ce courriel contient des instructions pour évaluer ce leader ou, si vous l'avez déjà vu, nous vous rappelons de l'évaluer dès que possible.</p>
+      
+      <p>Veuillez compléter l'évaluation au plus tard le <strong>${formattedDeadline}</strong>. Nous vous recommandons de compléter l'évaluation dans un délai d'une semaine. Nous vous remercions d'avance pour vos réponses et commentaires que vous voudrez bien indiquer dans le questionnaire.</p>
+      
+      ${loginInstructions.html}
+      
+      <p>Si vous avez des questions concernant ces instructions, veuillez contacter le SUPERADMIN MADABEL à l'adresse <a href="mailto:admin@madabel.com">admin@madabel.com</a>.</p>
+      
+      <p>Les réponses des évaluateurs sont collectées de manière anonyme et compilées en groupes d'évaluateurs pour les besoins du rapport. Les réponses des managers sont rapportées individuellement et peuvent ne pas être anonymes.</p>
+      
+      <p>Vous aurez également la possibilité d'entrer des commentaires libres si vous le souhaitez.</p>
+      
+      <p><strong>N'OUBLIEZ PAS</strong> de cliquer sur <strong>SOUMETTRE L'ENQUÊTE</strong> en bas de la page des commentaires, même si vous ne souhaitez pas inclure de commentaires libres.</p>
+      
+      <p>L'équipe Madabel</p>
+    `;
+
+      await sendEmail({
+        to: participant.user.email,
+        subject,
+        text,
+        html,
+      });
+
+      // Marquer le mail comme envoyé et incrémenter le compteur
+      await prisma.evaluationParticipant.update({
+        where: { id: participant.id },
+        data: {
+          mailSentAt: new Date(),
+          reminderCount: 1,
+        },
+      });
+
+      console.log(`✅ Email immédiat envoyé avec succès à ${participant.user.email}`);
+    } catch (error) {
+      console.error(`❌ Erreur lors de l'envoi immédiat de notification:`, error);
+      throw error;
+    }
   }
 }
 
