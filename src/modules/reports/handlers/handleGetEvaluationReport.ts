@@ -272,11 +272,21 @@ export async function handleGetEvaluationReport(
         CANDIDAT: 0,
       };
       
-      // Calculer les moyennes pour les types qui ont des données
+      // Initialiser countByEvaluatorType pour compter les participants
+      const countByEvaluatorType: Record<string, number> = {
+        COLLABORATEUR_DIRECT: 0,
+        MANAGER_DIRECT: 0,
+        COLLEGUE: 0,
+        RH: 0,
+        CANDIDAT: 0,
+      };
+      
+      // Calculer les moyennes et compter les participants pour les types qui ont des données
       for (const [dbType, data] of Object.entries(averagesByType)) {
         if (data.count > 0) {
           const frontendType = evaluatorTypeMap[dbType] || dbType;
           averagesByEvaluatorType[frontendType] = data.sum / data.count;
+          countByEvaluatorType[frontendType] = data.count;
         }
       }
 
@@ -301,8 +311,10 @@ export async function handleGetEvaluationReport(
         questionType: question.type,
         subcategory: question.subcategory || null,
         developOthers: question.developOthers || false,
+        order: question.order,
         overallAverage: overallAverage ? Number(overallAverage.toFixed(2)) : null,
         averagesByEvaluatorType,
+        countByEvaluatorType,
         candidatAnswer: candidatAnswer !== null ? Number(candidatAnswer.toFixed(2)) : null,
         totalEvaluators: evaluators.length,
         answeredEvaluators: validAnswers.length,
