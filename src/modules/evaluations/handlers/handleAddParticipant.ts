@@ -76,18 +76,42 @@ export const handleAddParticipant = async (
         }
      })
 
-    // Envoyer immédiatement un email de notification si c'est un évaluateur
-    if (role === "EVALUATOR") {
-      console.log(`🔔 Tentative d'envoi immédiat d'email pour le participant ${participant.id} (${email})`);
-      try {
+    // Logique d'envoi d'email selon le rôle
+    console.log(`🔔 Participant ${participant.id} (${email}) ajouté - Rôle: ${role}`);
+    
+    try {
+      if (role === "CANDIDAT") {
+        // Si c'est un CANDIDAT, envoyer son invitation immédiate
+        console.log(`📨 Envoi immédiat pour le CANDIDAT ${participant.id}`);
         await reminderService.sendImmediateNotification(participant.id);
-        console.log(`✅ Email immédiat traité pour le participant ${participant.id}`);
-      } catch (error) {
-        console.error("❌ Erreur lors de l'envoi de l'email immédiat:", error);
-        // On continue même si l'email échoue
+        
+        // Envoyer aussi les invitations à tous les évaluateurs en attente
+        console.log(`📨 Envoi des invitations aux évaluateurs en attente...`);
+        const sentCount = await reminderService.sendPendingEvaluatorInvitations(evaluationId);
+        console.log(`✅ ${sentCount} invitation(s) envoyée(s) aux évaluateurs`);
+      } else if (role === "EVALUATOR") {
+        // Si c'est un EVALUATOR, vérifier s'il y a déjà un candidat
+        const hasCandidate = await prisma.evaluationParticipant.findFirst({
+          where: {
+            evaluationId,
+            participantRole: "CANDIDAT"
+          }
+        });
+        
+        if (hasCandidate) {
+          // Il y a un candidat, envoyer l'invitation immédiate
+          console.log(`📨 Envoi immédiat pour l'EVALUATOR ${participant.id} (candidat présent)`);
+          await reminderService.sendImmediateNotification(participant.id);
+        } else {
+          // Pas de candidat, l'invitation sera envoyée quand un candidat sera ajouté
+          console.log(`⏸️ Pas d'envoi pour l'EVALUATOR ${participant.id} (aucun candidat dans l'évaluation)`);
+        }
       }
-    } else {
-      console.log(`⏭️  Pas d'email à envoyer - rôle: ${role}`);
+      
+      console.log(`✅ Email immédiat traité pour le participant ${participant.id}`);
+    } catch (error) {
+      console.error("❌ Erreur lors de l'envoi de l'email immédiat:", error);
+      // On continue même si l'email échoue
     }
 
     return reply.status(200).send({ user, participant});
