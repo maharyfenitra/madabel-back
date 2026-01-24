@@ -11,6 +11,108 @@ export class ReminderService {
   private isRunning = false;
 
   /**
+   * Génère le contenu de l'email selon le rôle du participant
+   */
+  private getEmailContent(
+    participantName: string,
+    participantRole: string,
+    candidatName: string,
+    evaluationRef: string,
+    formattedDeadline: string,
+    loginInstructions: { text: string; html: string }
+  ) {
+    if (participantRole === "CANDIDAT") {
+      // Email pour le candidat (auto-évaluation)
+      const subject = `Auto-évaluation de leadership - ${evaluationRef}`;
+      const text = `Cher ${participantName},
+
+Vous êtes invité à compléter votre auto-évaluation de leadership dans le cadre de l'évaluation MADABEL.
+
+L'évaluation est composée de 64 questions sur les compétences de leadership et prendra environ 10 minutes à compléter. Cette auto-évaluation est une occasion de réfléchir sur votre propre style de leadership.
+
+Veuillez compléter l'évaluation au plus tard le ${formattedDeadline}. Nous vous recommandons de compléter l'évaluation dans un délai d'une semaine.
+
+${loginInstructions.text}
+
+Si vous avez des questions concernant ces instructions, veuillez contacter le SUPERADMIN MADABEL à l'adresse admin@madabel.com.
+
+Vos réponses seront traitées de manière confidentielle et utilisées uniquement pour générer votre rapport de leadership.
+
+N'OUBLIEZ PAS de cliquer sur SOUMETTRE L'ENQUÊTE en bas de la page des commentaires, même si vous ne souhaitez pas inclure de commentaires libres.
+
+L'équipe Madabel`;
+
+      const html = `
+      <p>Cher ${participantName},</p>
+      
+      <p>Vous êtes invité à compléter votre <strong>auto-évaluation de leadership</strong> dans le cadre de l'évaluation MADABEL.</p>
+      
+      <p>L'évaluation est composée de 64 questions sur les compétences de leadership et prendra environ 10 minutes à compléter. Cette auto-évaluation est une occasion de réfléchir sur votre propre style de leadership.</p>
+      
+      <p>Veuillez compléter l'évaluation au plus tard le <strong>${formattedDeadline}</strong>. Nous vous recommandons de compléter l'évaluation dans un délai d'une semaine.</p>
+      
+      ${loginInstructions.html}
+      
+      <p>Si vous avez des questions concernant ces instructions, veuillez contacter le SUPERADMIN MADABEL à l'adresse <a href="mailto:admin@madabel.com">admin@madabel.com</a>.</p>
+      
+      <p>Vos réponses seront traitées de manière confidentielle et utilisées uniquement pour générer votre rapport de leadership.</p>
+      
+      <p><strong>N'OUBLIEZ PAS</strong> de cliquer sur <strong>SOUMETTRE L'ENQUÊTE</strong> en bas de la page des commentaires, même si vous ne souhaitez pas inclure de commentaires libres.</p>
+      
+      <p>L'équipe Madabel</p>
+    `;
+
+      return { subject, text, html };
+    } else {
+      // Email pour l'évaluateur
+      const subject = `Invitation à l'évaluation ${evaluationRef}`;
+      const text = `Cher ${participantName},
+
+${candidatName} vous a demandé de bien vouloir l'évaluer dans le cadre de l'évaluation du leadership de MADABEL.
+
+L'évaluation est composée de 64 questions sur les compétences de leadership et prendra environ 10 minutes à compléter. Ce courriel contient des instructions pour évaluer ce leader ou, si vous l'avez déjà vu, nous vous rappelons de l'évaluer dès que possible.
+
+Veuillez compléter l'évaluation au plus tard le ${formattedDeadline}. Nous vous recommandons de compléter l'évaluation dans un délai d'une semaine. Nous vous remercions d'avance pour vos réponses et commentaires que vous voudrez bien indiquer dans le questionnaire.
+
+${loginInstructions.text}
+
+Si vous avez des questions concernant ces instructions, veuillez contacter le SUPERADMIN MADABEL à l'adresse admin@madabel.com.
+
+Les réponses des évaluateurs sont collectées de manière anonyme et compilées en groupes d'évaluateurs pour les besoins du rapport. Les réponses des managers sont rapportées individuellement et peuvent ne pas être anonymes.
+
+Vous aurez également la possibilité d'entrer des commentaires libres si vous le souhaitez.
+
+N'OUBLIEZ PAS de cliquer sur SOUMETTRE L'ENQUÊTE en bas de la page des commentaires, même si vous ne souhaitez pas inclure de commentaires libres.
+
+L'équipe Madabel`;
+
+      const html = `
+      <p>Cher ${participantName},</p>
+      
+      <p>${candidatName} vous a demandé de bien vouloir l'évaluer dans le cadre de l'évaluation du leadership de MADABEL.</p>
+      
+      <p>L'évaluation est composée de 64 questions sur les compétences de leadership et prendra environ 10 minutes à compléter. Ce courriel contient des instructions pour évaluer ce leader ou, si vous l'avez déjà vu, nous vous rappelons de l'évaluer dès que possible.</p>
+      
+      <p>Veuillez compléter l'évaluation au plus tard le <strong>${formattedDeadline}</strong>. Nous vous recommandons de compléter l'évaluation dans un délai d'une semaine. Nous vous remercions d'avance pour vos réponses et commentaires que vous voudrez bien indiquer dans le questionnaire.</p>
+      
+      ${loginInstructions.html}
+      
+      <p>Si vous avez des questions concernant ces instructions, veuillez contacter le SUPERADMIN MADABEL à l'adresse <a href="mailto:admin@madabel.com">admin@madabel.com</a>.</p>
+      
+      <p>Les réponses des évaluateurs sont collectées de manière anonyme et compilées en groupes d'évaluateurs pour les besoins du rapport. Les réponses des managers sont rapportées individuellement et peuvent ne pas être anonymes.</p>
+      
+      <p>Vous aurez également la possibilité d'entrer des commentaires libres si vous le souhaitez.</p>
+      
+      <p><strong>N'OUBLIEZ PAS</strong> de cliquer sur <strong>SOUMETTRE L'ENQUÊTE</strong> en bas de la page des commentaires, même si vous ne souhaitez pas inclure de commentaires libres.</p>
+      
+      <p>L'équipe Madabel</p>
+    `;
+
+      return { subject, text, html };
+    }
+  }
+
+  /**
    * Démarre le service de relance automatique
    */
   async start() {
@@ -65,7 +167,6 @@ export class ReminderService {
       const incompleteParticipants = await prisma.evaluationParticipant.findMany({
         where: {
           completedAt: null,
-          participantRole: "EVALUATOR",
           evaluation: {
             isCompleted: false,
             deadline: {
@@ -104,27 +205,29 @@ export class ReminderService {
 
           console.log(`🔍 Vérification participant: ${participant.user.name} (${participant.user.email})`);
           
-          const candidat = participant.evaluation.participants.find(
-            (p: any) => p.participantRole === "CANDIDAT"
-          );
-
-          if (!candidat) {
-            console.log(`⚠️  Aucun candidat trouvé pour le participant ${participant.user.name}`);
-            continue;
-          }
-          
           if (!participant.user.email) {
             console.log(`⚠️  Aucun email pour le participant ${participant.user.name}`);
             continue;
           }
 
+          // Trouver le candidat pour le contexte de l'email
+          const candidat = participant.evaluation.participants.find(
+            (p: any) => p.participantRole === "CANDIDAT"
+          );
+          
+          // Si c'est un évaluateur et qu'il n'y a pas de candidat, on ne peut pas envoyer de relance
+          if (participant.participantRole === "EVALUATOR" && !candidat) {
+            console.log(`⚠️  Pas de candidat pour l'évaluateur ${participant.user.email}, relance ignorée`);
+            continue;
+          }
+          
+          const candidatName = candidat?.user.name || participant.user.name;
+
           console.log(`📤 Préparation de l'envoi pour ${participant.user.email}...`);
 
           // Préparer les informations pour le mail d'invitation
-          const candidatName = candidat.user.name || "la personne concernée";
           const deadline = participant.evaluation.deadline;
           const formattedDeadline = deadline ? new Date(deadline).toLocaleDateString('fr-FR') : "la date limite";
-          const subject = `Invitation à l'évaluation ${participant.evaluation.ref}`;
 
           // Générer mot de passe temporaire si première connexion
           let temporaryPassword = "";
@@ -138,53 +241,21 @@ export class ReminderService {
             temporaryPassword
           );
 
-          const text = `Cher ${participant.user.name},
-
-${candidatName} vous a demandé de bien vouloir l'évaluer dans le cadre de l'évaluation du leadership de MADABEL.
-
-L'évaluation est composée de 64 questions sur les compétences de leadership et prendra environ 10 minutes à compléter. Ce courriel contient des instructions pour évaluer ce leader ou, si vous l'avez déjà vu, nous vous rappelons de l'évaluer dès que possible.
-
-Veuillez compléter l'évaluation au plus tard le ${formattedDeadline}. Nous vous recommandons de compléter l'évaluation dans un délai d'une semaine. Nous vous remercions d'avance pour vos réponses et commentaires que vous voudrez bien indiquer dans le questionnaire.
-
-${loginInstructions.text}
-
-Si vous avez des questions concernant ces instructions, veuillez contacter le SUPERADMIN MADABEL à l'adresse admin@madabel.com.
-
-Les réponses des évaluateurs sont collectées de manière anonyme et compilées en groupes d'évaluateurs pour les besoins du rapport. Les réponses des managers sont rapportées individuellement et peuvent ne pas être anonymes.
-
-Vous aurez également la possibilité d'entrer des commentaires libres si vous le souhaitez.
-
-N'OUBLIEZ PAS de cliquer sur SOUMETTRE L'ENQUÊTE en bas de la page des commentaires, même si vous ne souhaitez pas inclure de commentaires libres.
-
-L'équipe Madabel`;
-
-          const html = `
-      <p>Cher ${participant.user.name},</p>
-      
-      <p>${candidatName} vous a demandé de bien vouloir l'évaluer dans le cadre de l'évaluation du leadership de MADABEL.</p>
-      
-      <p>L'évaluation est composée de 64 questions sur les compétences de leadership et prendra environ 10 minutes à compléter. Ce courriel contient des instructions pour évaluer ce leader ou, si vous l'avez déjà vu, nous vous rappelons de l'évaluer dès que possible.</p>
-      
-      <p>Veuillez compléter l'évaluation au plus tard le <strong>${formattedDeadline}</strong>. Nous vous recommandons de compléter l'évaluation dans un délai d'une semaine. Nous vous remercions d'avance pour vos réponses et commentaires que vous voudrez bien indiquer dans le questionnaire.</p>
-      
-      ${loginInstructions.html}
-      
-      <p>Si vous avez des questions concernant ces instructions, veuillez contacter le SUPERADMIN MADABEL à l'adresse <a href="mailto:admin@madabel.com">admin@madabel.com</a>.</p>
-      
-      <p>Les réponses des évaluateurs sont collectées de manière anonyme et compilées en groupes d'évaluateurs pour les besoins du rapport. Les réponses des managers sont rapportées individuellement et peuvent ne pas être anonymes.</p>
-      
-      <p>Vous aurez également la possibilité d'entrer des commentaires libres si vous le souhaitez.</p>
-      
-      <p><strong>N'OUBLIEZ PAS</strong> de cliquer sur <strong>SOUMETTRE L'ENQUÊTE</strong> en bas de la page des commentaires, même si vous ne souhaitez pas inclure de commentaires libres.</p>
-      
-      <p>L'équipe Madabel</p>
-    `;
+          // Obtenir le contenu de l'email selon le rôle
+          const emailContent = this.getEmailContent(
+            participant.user.name,
+            participant.participantRole,
+            candidatName,
+            participant.evaluation.ref,
+            formattedDeadline,
+            loginInstructions
+          );
 
           await sendEmail({
             to: participant.user.email,
-            subject,
-            text,
-            html,
+            subject: emailContent.subject,
+            text: emailContent.text,
+            html: emailContent.html,
           });
 
           // Incrémenter le compteur de relances
@@ -248,7 +319,6 @@ L'équipe Madabel`;
       const incompleteParticipants = await prisma.evaluationParticipant.findMany({
         where: {
           completedAt: null,
-          participantRole: "EVALUATOR",
           evaluation: {
             isCompleted: false,
             deadline: {
@@ -285,19 +355,26 @@ L'équipe Madabel`;
             continue;
           }
 
-          const candidat = participant.evaluation.participants.find(
-            (p: any) => p.participantRole === "CANDIDAT"
-          );
-
-          if (!candidat || !participant.user.email) {
+          if (!participant.user.email) {
             continue;
           }
 
+          // Trouver le candidat pour le contexte de l'email
+          const candidat = participant.evaluation.participants.find(
+            (p: any) => p.participantRole === "CANDIDAT"
+          );
+          
+          // Si c'est un évaluateur et qu'il n'y a pas de candidat, on ne peut pas envoyer de relance
+          if (participant.participantRole === "EVALUATOR" && !candidat) {
+            console.log(`⚠️  Pas de candidat pour l'évaluateur ${participant.user.email}, relance ignorée`);
+            continue;
+          }
+          
+          const candidatName = candidat?.user.name || participant.user.name;
+
           // Préparer les informations pour le mail d'invitation
-          const candidatName = candidat.user.name || "la personne concernée";
           const deadline = participant.evaluation.deadline;
           const formattedDeadline = deadline ? new Date(deadline).toLocaleDateString('fr-FR') : "la date limite";
-          const subject = `Invitation à l'évaluation ${participant.evaluation.ref}`;
 
           // Générer mot de passe temporaire si première connexion
           let temporaryPassword = "";
@@ -311,53 +388,21 @@ L'équipe Madabel`;
             temporaryPassword
           );
 
-          const text = `Cher ${participant.user.name},
-
-${candidatName} vous a demandé de bien vouloir l'évaluer dans le cadre de l'évaluation du leadership de MADABEL.
-
-L'évaluation est composée de 64 questions sur les compétences de leadership et prendra environ 10 minutes à compléter. Ce courriel contient des instructions pour évaluer ce leader ou, si vous l'avez déjà vu, nous vous rappelons de l'évaluer dès que possible.
-
-Veuillez compléter l'évaluation au plus tard le ${formattedDeadline}. Nous vous recommandons de compléter l'évaluation dans un délai d'une semaine. Nous vous remercions d'avance pour vos réponses et commentaires que vous voudrez bien indiquer dans le questionnaire.
-
-${loginInstructions.text}
-
-Si vous avez des questions concernant ces instructions, veuillez contacter le SUPERADMIN MADABEL à l'adresse admin@madabel.com.
-
-Les réponses des évaluateurs sont collectées de manière anonyme et compilées en groupes d'évaluateurs pour les besoins du rapport. Les réponses des managers sont rapportées individuellement et peuvent ne pas être anonymes.
-
-Vous aurez également la possibilité d'entrer des commentaires libres si vous le souhaitez.
-
-N'OUBLIEZ PAS de cliquer sur SOUMETTRE L'ENQUÊTE en bas de la page des commentaires, même si vous ne souhaitez pas inclure de commentaires libres.
-
-L'équipe Madabel`;
-
-          const html = `
-      <p>Cher ${participant.user.name},</p>
-      
-      <p>${candidatName} vous a demandé de bien vouloir l'évaluer dans le cadre de l'évaluation du leadership de MADABEL.</p>
-      
-      <p>L'évaluation est composée de 64 questions sur les compétences de leadership et prendra environ 10 minutes à compléter. Ce courriel contient des instructions pour évaluer ce leader ou, si vous l'avez déjà vu, nous vous rappelons de l'évaluer dès que possible.</p>
-      
-      <p>Veuillez compléter l'évaluation au plus tard le <strong>${formattedDeadline}</strong>. Nous vous recommandons de compléter l'évaluation dans un délai d'une semaine. Nous vous remercions d'avance pour vos réponses et commentaires que vous voudrez bien indiquer dans le questionnaire.</p>
-      
-      ${loginInstructions.html}
-      
-      <p>Si vous avez des questions concernant ces instructions, veuillez contacter le SUPERADMIN MADABEL à l'adresse <a href="mailto:admin@madabel.com">admin@madabel.com</a>.</p>
-      
-      <p>Les réponses des évaluateurs sont collectées de manière anonyme et compilées en groupes d'évaluateurs pour les besoins du rapport. Les réponses des managers sont rapportées individuellement et peuvent ne pas être anonymes.</p>
-      
-      <p>Vous aurez également la possibilité d'entrer des commentaires libres si vous le souhaitez.</p>
-      
-      <p><strong>N'OUBLIEZ PAS</strong> de cliquer sur <strong>SOUMETTRE L'ENQUÊTE</strong> en bas de la page des commentaires, même si vous ne souhaitez pas inclure de commentaires libres.</p>
-      
-      <p>L'équipe Madabel</p>
-    `;
+          // Obtenir le contenu de l'email selon le rôle
+          const emailContent = this.getEmailContent(
+            participant.user.name,
+            participant.participantRole,
+            candidatName,
+            participant.evaluation.ref,
+            formattedDeadline,
+            loginInstructions
+          );
 
           await sendEmail({
             to: participant.user.email,
-            subject,
-            text,
-            html,
+            subject: emailContent.subject,
+            text: emailContent.text,
+            html: emailContent.html,
           });
 
           // Incrémenter le compteur de relances
@@ -414,6 +459,58 @@ L'équipe Madabel`;
   }
 
   /**
+   * Envoie les invitations à tous les évaluateurs en attente (sans mail envoyé) d'une évaluation
+   * @param evaluationId - L'ID de l'évaluation
+   */
+  async sendPendingEvaluatorInvitations(evaluationId: number) {
+    try {
+      console.log(`📨 Envoi des invitations aux évaluateurs en attente pour l'évaluation ${evaluationId}...`);
+
+      // Récupérer tous les évaluateurs qui n'ont pas encore reçu de mail
+      const pendingEvaluators = await prisma.evaluationParticipant.findMany({
+        where: {
+          evaluationId,
+          participantRole: "EVALUATOR",
+          mailSentAt: null,
+        },
+        include: {
+          user: true,
+          evaluation: {
+            include: {
+              participants: {
+                where: {
+                  participantRole: "CANDIDAT",
+                },
+                include: {
+                  user: true,
+                },
+              },
+            },
+          },
+        },
+      });
+
+      console.log(`📧 ${pendingEvaluators.length} évaluateur(s) en attente d'invitation`);
+
+      let sentCount = 0;
+      for (const evaluator of pendingEvaluators) {
+        try {
+          await this.sendImmediateNotification(evaluator.id);
+          sentCount++;
+        } catch (error) {
+          console.error(`❌ Erreur lors de l'envoi à l'évaluateur ${evaluator.id}:`, error);
+        }
+      }
+
+      console.log(`✅ ${sentCount}/${pendingEvaluators.length} invitation(s) envoyée(s) aux évaluateurs`);
+      return sentCount;
+    } catch (error) {
+      console.error("❌ Erreur lors de l'envoi des invitations aux évaluateurs en attente:", error);
+      throw error;
+    }
+  }
+
+  /**
    * Envoie immédiatement une notification à un participant qui n'a jamais reçu de mail
    * @param participantId - L'ID du participant
    */
@@ -454,12 +551,6 @@ L'équipe Madabel`;
         return;
       }
 
-      // Ne pas envoyer si le participant n'est pas un évaluateur
-      if (participant.participantRole !== "EVALUATOR") {
-        console.log(`⚠️  Le participant ${participant.user.email} n'est pas un évaluateur`);
-        return;
-      }
-
       // Ne pas envoyer si l'évaluation est complétée
       if (participant.evaluation.isCompleted) {
         console.log(`⚠️  L'évaluation ${participant.evaluation.ref} est déjà complétée`);
@@ -473,15 +564,6 @@ L'équipe Madabel`;
         return;
       }
 
-      const candidat = participant.evaluation.participants.find(
-        (p: any) => p.participantRole === "CANDIDAT"
-      );
-
-      if (!candidat) {
-        console.log(`⚠️  Aucun candidat trouvé pour le participant ${participant.user.name}`);
-        return;
-      }
-
       if (!participant.user.email) {
         console.log(`⚠️  Aucun email pour le participant ${participant.user.name}`);
         return;
@@ -489,11 +571,16 @@ L'équipe Madabel`;
 
       console.log(`📤 Préparation de l'envoi immédiat pour ${participant.user.email}...`);
 
+      // Trouver le candidat pour le contexte de l'email
+      const candidat = participant.evaluation.participants.find(
+        (p: any) => p.participantRole === "CANDIDAT"
+      );
+      
+      const candidatName = candidat?.user.name || participant.user.name;
+
       // Préparer les informations pour le mail d'invitation
-      const candidatName = candidat.user.name || "la personne concernée";
       const deadline = participant.evaluation.deadline;
       const formattedDeadline = deadline ? new Date(deadline).toLocaleDateString('fr-FR') : "la date limite";
-      const subject = `Invitation à l'évaluation ${participant.evaluation.ref}`;
 
       // Générer mot de passe temporaire si première connexion
       let temporaryPassword = "";
@@ -507,53 +594,21 @@ L'équipe Madabel`;
         temporaryPassword
       );
 
-      const text = `Cher ${participant.user.name},
-
-${candidatName} vous a demandé de bien vouloir l'évaluer dans le cadre de l'évaluation du leadership de MADABEL.
-
-L'évaluation est composée de 64 questions sur les compétences de leadership et prendra environ 10 minutes à compléter. Ce courriel contient des instructions pour évaluer ce leader ou, si vous l'avez déjà vu, nous vous rappelons de l'évaluer dès que possible.
-
-Veuillez compléter l'évaluation au plus tard le ${formattedDeadline}. Nous vous recommandons de compléter l'évaluation dans un délai d'une semaine. Nous vous remercions d'avance pour vos réponses et commentaires que vous voudrez bien indiquer dans le questionnaire.
-
-${loginInstructions.text}
-
-Si vous avez des questions concernant ces instructions, veuillez contacter le SUPERADMIN MADABEL à l'adresse admin@madabel.com.
-
-Les réponses des évaluateurs sont collectées de manière anonyme et compilées en groupes d'évaluateurs pour les besoins du rapport. Les réponses des managers sont rapportées individuellement et peuvent ne pas être anonymes.
-
-Vous aurez également la possibilité d'entrer des commentaires libres si vous le souhaitez.
-
-N'OUBLIEZ PAS de cliquer sur SOUMETTRE L'ENQUÊTE en bas de la page des commentaires, même si vous ne souhaitez pas inclure de commentaires libres.
-
-L'équipe Madabel`;
-
-      const html = `
-      <p>Cher ${participant.user.name},</p>
-      
-      <p>${candidatName} vous a demandé de bien vouloir l'évaluer dans le cadre de l'évaluation du leadership de MADABEL.</p>
-      
-      <p>L'évaluation est composée de 64 questions sur les compétences de leadership et prendra environ 10 minutes à compléter. Ce courriel contient des instructions pour évaluer ce leader ou, si vous l'avez déjà vu, nous vous rappelons de l'évaluer dès que possible.</p>
-      
-      <p>Veuillez compléter l'évaluation au plus tard le <strong>${formattedDeadline}</strong>. Nous vous recommandons de compléter l'évaluation dans un délai d'une semaine. Nous vous remercions d'avance pour vos réponses et commentaires que vous voudrez bien indiquer dans le questionnaire.</p>
-      
-      ${loginInstructions.html}
-      
-      <p>Si vous avez des questions concernant ces instructions, veuillez contacter le SUPERADMIN MADABEL à l'adresse <a href="mailto:admin@madabel.com">admin@madabel.com</a>.</p>
-      
-      <p>Les réponses des évaluateurs sont collectées de manière anonyme et compilées en groupes d'évaluateurs pour les besoins du rapport. Les réponses des managers sont rapportées individuellement et peuvent ne pas être anonymes.</p>
-      
-      <p>Vous aurez également la possibilité d'entrer des commentaires libres si vous le souhaitez.</p>
-      
-      <p><strong>N'OUBLIEZ PAS</strong> de cliquer sur <strong>SOUMETTRE L'ENQUÊTE</strong> en bas de la page des commentaires, même si vous ne souhaitez pas inclure de commentaires libres.</p>
-      
-      <p>L'équipe Madabel</p>
-    `;
+      // Obtenir le contenu de l'email selon le rôle
+      const emailContent = this.getEmailContent(
+        participant.user.name,
+        participant.participantRole,
+        candidatName,
+        participant.evaluation.ref,
+        formattedDeadline,
+        loginInstructions
+      );
 
       await sendEmail({
         to: participant.user.email,
-        subject,
-        text,
-        html,
+        subject: emailContent.subject,
+        text: emailContent.text,
+        html: emailContent.html,
       });
 
       // Marquer le mail comme envoyé et incrémenter le compteur

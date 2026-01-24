@@ -1,7 +1,7 @@
 import multipart from '@fastify/multipart';
 
 import type { FastifyInstance } from "fastify";
-import { handleSignUp, handleLogin, handleLogout, handleRequestPasswordReset, handleResetPassword } from "./handlers";
+import { handleSignUp, handleLogin, handleLogout, handleRequestPasswordReset, handleResetPassword, handleRefresh } from "./handlers";
 import type {  LoginBody, RefreshBody } from "./handlers";
 import { handleTest } from "./handlers/handleTest";
 
@@ -35,6 +35,11 @@ export async function authRoutes(fastify: FastifyInstance) {
   fastify.post<{
     Body: RefreshBody;
   }>("/auth/logout/", handleLogout);
+
+  // Refresh token
+  fastify.post<{
+    Body: RefreshBody;
+  }>("/auth/refresh/", handleRefresh);
 
   // Test
   fastify.get<{
