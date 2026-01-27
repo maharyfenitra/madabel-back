@@ -12,6 +12,7 @@ export const handleCreateEvaluation = async (
 
   // Récupérer les champs texte correctement
   const ref = body.ref?.value || body.ref;
+  const quizId = body.quizId?.value || body.quizId;
   const createdAt = body.createdAt?.value || body.createdAt;
   const deadline = body.deadline?.value || body.deadline;
   const completedAt = body.completedAt?.value || body.completedAt;
@@ -33,6 +34,7 @@ export const handleCreateEvaluation = async (
     const evaluation = await prisma.evaluation.create({
       data: {
         ref,
+        quizId: quizId ? parseInt(quizId) : undefined,
         completedAt: parseDate(completedAt),
         deadline: parseDate(deadline)!,
         createdAt: parseDate(createdAt) || new Date(), // Default to now if not provided
