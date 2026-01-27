@@ -27,45 +27,15 @@ export async function handleGetAllReports(
     const { page, limit, skip } = parsePaginationParams(request.query);
 
     // Build where clause based on user role
-    let whereClause: any = {};
-
-    if (user.role === "ADMIN") {
-      // ADMIN sees all evaluations
-      whereClause = {};
-    } else if (user.role === "CANDIDAT") {
-      // CANDIDAT sees evaluations where they are candidat AND at least one evaluator completed
-      whereClause = {
-        AND: [
-          {
-            participants: {
-              some: {
-                userId: user.userId,
-                participantRole: "CANDIDAT",
-              },
-            },
-          },
-          {
-            participants: {
-              some: {
-                participantRole: "EVALUATOR",
-                completedAt: { not: null },
-              },
-            },
-          },
-        ],
-      };
-    } else if (user.role === "EVALUATOR") {
-      // EVALUATOR sees evaluations they participated in AND completed
-      whereClause = {
-        participants: {
-          some: {
-            userId: user.userId,
-            participantRole: "EVALUATOR",
-            completedAt: { not: null },
-          },
-        },
-      };
+    // Seuls les ADMIN ont accès aux rapports
+    if (user.role !== "ADMIN") {
+      return reply.status(403).send({
+        error: "Accès refusé. Seuls les administrateurs peuvent consulter les rapports.",
+      });
     }
+
+    let whereClause: any = {};
+    whereClause = {};
 
     // Fetch evaluations and total count in parallel
     const [evaluations, total] = await Promise.all([

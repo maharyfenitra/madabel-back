@@ -18,73 +18,11 @@ export async function handleGetEvaluationReport(
     console.log("User accessing report:", { userId: user.userId, role: user.role, evaluationId });
 
     // Vérifier que l'utilisateur a accès à ce rapport
-    // - ADMIN : accès à tous les rapports
-    // - CANDIDAT : accès aux rapports où il est le candidat évalué ET où au moins un évaluateur a complété
-    // - EVALUATOR : accès aux rapports des évaluations qu'il a complétées
-    
+    // Seuls les ADMIN ont accès aux rapports
     if (user.role !== "ADMIN") {
-      // Vérifier si l'utilisateur est participant
-      const userParticipants = await prisma.evaluationParticipant.findMany({
-        where: {
-          evaluationId: parseInt(evaluationId),
-          userId: user.userId,
-        },
+      return reply.status(403).send({
+        error: "Accès refusé. Seuls les administrateurs peuvent consulter les rapports.",
       });
-
-      if (userParticipants.length === 0) {
-        return reply.status(403).send({
-          error: "Vous n'êtes pas autorisé à accéder à ce rapport",
-        });
-      }
-
-      // Vérifier les conditions selon le rôle de participation
-      let hasAccess = false;
-
-      for (const participant of userParticipants) {
-        // Si c'est un évaluateur ET qu'il a complété, il a accès
-        if (participant.participantRole === "EVALUATOR" && participant.completedAt) {
-          hasAccess = true;
-          break;
-        }
-
-        // Si c'est un candidat, vérifier qu'au moins un évaluateur a complété
-        if (participant.participantRole === "CANDIDAT") {
-          const completedEvaluators = await prisma.evaluationParticipant.count({
-            where: {
-              evaluationId: parseInt(evaluationId),
-              participantRole: "EVALUATOR",
-              completedAt: { not: null },
-            },
-          });
-
-          if (completedEvaluators > 0) {
-            hasAccess = true;
-            break;
-          }
-        }
-      }
-
-      if (!hasAccess) {
-        // Déterminer le message d'erreur approprié
-        const isEvaluator = userParticipants.some(p => p.participantRole === "EVALUATOR");
-        const isCandidat = userParticipants.some(p => p.participantRole === "CANDIDAT");
-
-        if (isEvaluator && userParticipants.every(p => !p.completedAt)) {
-          return reply.status(403).send({
-            error: "Vous devez compléter votre évaluation avant de voir le rapport",
-          });
-        }
-
-        if (isCandidat) {
-          return reply.status(403).send({
-            error: "Aucun évaluateur n'a encore complété cette évaluation",
-          });
-        }
-
-        return reply.status(403).send({
-          error: "Vous n'êtes pas autorisé à accéder à ce rapport",
-        });
-      }
     }
 
     // Récupérer l'évaluation avec le quiz et les questions
@@ -193,6 +131,20 @@ export async function handleGetEvaluationReport(
           }))
           .filter((a) => a.text);
 
+        // Ajouter la réponse du candidat si elle existe
+        if (candidat) {
+          const candidatAnswerData = candidat.answers.find(
+            (a) => a.questionId === question.id
+          );
+          if (candidatAnswerData?.textAnswer) {
+            textAnswers.push({
+              evaluatorType: "CANDIDAT",
+              participantId: candidat.id,
+              text: candidatAnswerData.textAnswer,
+            });
+          }
+        }
+
         reportData[category].questions.push({
           questionId: question.id,
           questionText: question.text,
@@ -252,8 +204,6 @@ export async function handleGetEvaluationReport(
         }
       }
 
-      const overallAverage = overallCount > 0 ? overallSum / overallCount : null;
-
       // Mapper les EvaluatorType de la DB vers les clés utilisées dans le frontend
       const evaluatorTypeMap: Record<string, string> = {
         'DIRECT_MANAGER': 'MANAGER_DIRECT',
@@ -262,6 +212,36 @@ export async function handleGetEvaluationReport(
         'OTHER': 'RH',
         'CANDIDAT': 'CANDIDAT',
       };
+
+      // Récupérer la réponse individuelle du candidat pour cette question
+      let candidatAnswer: number | null = null;
+      if (candidat) {
+        const candidatAnswerData = candidat.answers.find(
+          (a) => a.questionId === question.id
+        );
+        if (candidatAnswerData) {
+          if (question.type === "SCALE") {
+            candidatAnswer = candidatAnswerData.numericAnswer;
+          } else if (question.type === "SINGLE_CHOICE" && candidatAnswerData.selectedOption) {
+            candidatAnswer = candidatAnswerData.selectedOption.value || 0;
+          }
+          
+          // Ajouter la réponse du candidat au calcul de la moyenne générale
+          if (candidatAnswer !== null) {
+            overallSum += candidatAnswer;
+            overallCount++;
+            
+            // Ajouter au type CANDIDAT
+            if (!averagesByType['CANDIDAT']) {
+              averagesByType['CANDIDAT'] = { sum: 0, count: 0 };
+            }
+            averagesByType['CANDIDAT'].sum += candidatAnswer;
+            averagesByType['CANDIDAT'].count++;
+          }
+        }
+      }
+
+      const overallAverage = overallCount > 0 ? overallSum / overallCount : null;
 
       // Initialiser averagesByEvaluatorType avec tous les types à 0
       const averagesByEvaluatorType: Record<string, number> = {
@@ -287,21 +267,6 @@ export async function handleGetEvaluationReport(
           const frontendType = evaluatorTypeMap[dbType] || dbType;
           averagesByEvaluatorType[frontendType] = data.sum / data.count;
           countByEvaluatorType[frontendType] = data.count;
-        }
-      }
-
-      // Récupérer la réponse individuelle du candidat pour cette question
-      let candidatAnswer: number | null = null;
-      if (candidat) {
-        const candidatAnswerData = candidat.answers.find(
-          (a) => a.questionId === question.id
-        );
-        if (candidatAnswerData) {
-          if (question.type === "SCALE") {
-            candidatAnswer = candidatAnswerData.numericAnswer;
-          } else if (question.type === "SINGLE_CHOICE" && candidatAnswerData.selectedOption) {
-            candidatAnswer = candidatAnswerData.selectedOption.value || 0;
-          }
         }
       }
 
